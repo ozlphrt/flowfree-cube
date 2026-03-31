@@ -4,9 +4,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>3D FlowFree | Labeled Challenge</title>
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <script type="module" crossorigin src="/flowfree-cube/assets/index-DTziLokW.js"></script>
-    <link rel="stylesheet" crossorigin href="/flowfree-cube/assets/index-CDIt1X65.css">
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <script type="module" crossorigin src="/flowfree-cube/assets/index-CjFC93w9.js"></script>
+    <link rel="stylesheet" crossorigin href="/flowfree-cube/assets/index-CFFyXYNe.css">
   </head>
   <body>
     <!-- 3D Canvas will be injected here by Three.js -->
@@ -24,6 +25,12 @@
 
       <!-- HUD Bottom: Controls -->
       <div class="hud-footer">
+      </div>
+
+      <!-- Update Notification (Hidden) -->
+      <div id="update-banner" class="hidden">
+        <span class="update-text">NEW VERSION READY</span>
+        <button id="reload-btn">RELOAD</button>
       </div>
     </div>
 
