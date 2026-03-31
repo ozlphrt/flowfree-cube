@@ -1,0 +1,194 @@
+/* Reset and mobile-first full screen */
+:root {
+  font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
+  --primary-bg: #111;
+  --text-main: #fff;
+  --glass-bg: rgba(255, 255, 255, 0.1);
+  --glass-border: rgba(255, 255, 255, 0.2);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body, html {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--primary-bg);
+  /* CRITICAL: Prevent pull-to-refresh and zooming on mobile */
+  touch-action: none;
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+
+#ui-layer#hud {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  color: white;
+  font-family: 'Outfit', 'Inter', sans-serif;
+  pointer-events: none;
+}
+
+#hud h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+
+#settings-container {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+}
+
+#settings-btn {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  width: 44px;
+  height: 44px;
+  font-size: 24px;
+  color: white;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  transition: all 0.2s ease;
+}
+
+#settings-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: rotate(45deg);
+}
+
+#settings-panel {
+  position: absolute;
+  top: 55px;
+  right: 0;
+  width: 260px;
+  background: rgba(30, 30, 35, 0.85);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 20px;
+  color: white;
+  font-family: 'Outfit', 'Inter', sans-serif;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+#settings-panel.hidden {
+  display: none;
+}
+
+#settings-panel h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 500;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 10px;
+}
+
+.setting-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.setting-item label {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+#sensitivity-val {
+  font-weight: 600;
+  color: #007aff;
+}
+
+input[type="range"] {
+  width: 100%;
+  accent-color: #007aff;
+  cursor: pointer;
+}
+
+#close-settings {
+  background: #007aff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 10px;
+}
+
+#close-settings:hover {
+  background: #0056b3;
+}
+
+#ui-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none; /* Let touches pass through to 3D canvas */
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+.hud-header {
+  padding: 1rem;
+  text-align: center;
+  pointer-events: auto;
+}
+
+.hud-header h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-main);
+  text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+  margin-bottom: 0.2rem;
+}
+
+.hud-header .level-info {
+  font-size: 0.9rem;
+  color: #ccc;
+  text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+}
+
+.hud-footer {
+  padding: 1.5rem;
+  display: flex;
+  justify-content: center;
+  pointer-events: auto;
+}
+
+button#reset-btn {
+  background: var(--glass-bg);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--glass-border);
+  color: var(--text-main);
+  padding: 0.8rem 2rem;
+  border-radius: 999px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+}
+
+button#reset-btn:active {
+  transform: scale(0.95);
+  background: rgba(255, 255, 255, 0.2);
+}

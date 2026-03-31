@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>3D FlowFree PWA</title>
+    <!-- Basic PWA placeholders -->
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  </head>
+  <body>
+    <!-- 3D Canvas will be injected here by Three.js -->
+    <div id="ui-layer">
+      <header class="hud-header">
+        <h1>FlowFree 3D</h1>
+        <div class="level-info">Level 1 - 9x9x9 Grid</div>
+      </header>
+      <div class="hud-footer">
+        <button id="reset-btn">Reset</button>
+      </div>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
