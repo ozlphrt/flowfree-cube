@@ -1,32 +1,14 @@
-import { defineConfig } from 'vite';
-import { VitePWA } from 'vite-plugin-pwa';
+import { defineConfig } from 'vite'
 
 export default defineConfig({
-  plugins: [
-    VitePWA({
-      registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
-      manifest: {
-        name: '3D FlowFree',
-        short_name: 'Flow3D',
-        description: 'A mobile-first 3D version of the Flow Free puzzle game.',
-        theme_color: '#111111',
-        background_color: '#111111',
-        display: 'standalone',
-        orientation: 'portrait',
-        icons: [
-          {
-            src: 'pwa-192x192.png',
-            sizes: '192x192',
-            type: 'image/png'
-          },
-          {
-            src: 'pwa-512x512.png',
-            sizes: '512x512',
-            type: 'image/png'
-          }
-        ]
-      }
-    })
-  ]
-});
+  base: '/flowfree-cube/',
+  build: {
+    outDir: 'dist',
+    assetsDir: 'assets',
+    sourcemap: true
+  },
+  server: {
+    port: 5173,
+    open: true
+  }
+})
