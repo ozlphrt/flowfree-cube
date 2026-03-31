@@ -6,8 +6,8 @@
     <title>3D FlowFree | Labeled Challenge</title>
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-    <script type="module" crossorigin src="/flowfree-cube/assets/index-Pco2iUY6.js"></script>
-    <link rel="stylesheet" crossorigin href="/flowfree-cube/assets/index-Cuh8p7Ky.css">
+    <script type="module" crossorigin src="/flowfree-cube/assets/index-Aa_w2EJP.js"></script>
+    <link rel="stylesheet" crossorigin href="/flowfree-cube/assets/index-D5_PjgA_.css">
   </head>
   <body>
     <!-- 3D Canvas will be injected here by Three.js -->
@@ -16,15 +16,16 @@
       <!-- HUD Top: Progress Information -->
       <header class="hud-header">
         <div id="hud-top">
-      <div class="hud-item" id="pipes-box">
-        <span class="hud-label">PUZZLE</span>
-        <span class="hud-value" id="pipes-count">0 / 0</span>
-      </div>
-    </div>
+          <div class="hud-item" id="pipes-box">
+            <span class="hud-label">PUZZLE</span>
+            <span class="hud-value" id="pipes-count">0 / 0</span>
+          </div>
+        </div>
       </header>
 
       <!-- HUD Bottom: Controls -->
       <div class="hud-footer">
+        <button id="reset-btn">Reset</button>
       </div>
 
       <!-- Update Notification (Hidden) -->
@@ -51,7 +52,7 @@
         </div>
     </div>
 
-    <!-- Settings (Already implemented) -->
+    <!-- Settings Panel -->
     <div id="settings-container">
         <button id="settings-btn">⚙️</button>
         <div id="settings-panel" class="hidden">
