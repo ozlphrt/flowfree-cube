@@ -152,11 +152,15 @@ export class InteractionManager {
           const target = cellHit.object.userData;
           if (target.faceIndex !== this.lastCell.f || target.u !== this.lastCell.u || target.v !== this.lastCell.v) {
             
-            // Lookback corner cutting
+            // Lookback corner cutting (now "Adjacency-Only")
             if (this.activePath.cells.length > 2) {
-                for (let j = 0; j < this.activePath.cells.length - 2; j++) {
+                // Only check the previous few cells to allow long winding paths
+                const lookbackLimit = Math.max(0, this.activePath.cells.length - 10);
+                for (let j = this.activePath.cells.length - 3; j >= lookbackLimit; j--) {
                     const prev = this.activePath.cells[j];
-                    if (prev.f === target.faceIndex && (prev.u === target.u || prev.v === target.v)) {
+                    // Only shortcut if target is an IMMEDIATE NEIGHBOR of an earlier cell
+                    const isNeighbor = Math.abs(prev.u - target.u) + Math.abs(prev.v - target.v) === 1;
+                    if (prev.f === target.faceIndex && isNeighbor) {
                         this.activePath.cells = this.activePath.cells.slice(0, j + 1);
                         const normal = this.grid.getFaceNormal(prev.f);
                         this.lastCell = { ...prev, position: this.grid.getCellPosition(prev.f, prev.u, prev.v).add(normal.clone().multiplyScalar(0.12)), normal };
