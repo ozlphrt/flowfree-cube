@@ -18,15 +18,16 @@ export class CubeGrid {
     // 1. Core Cube - FROSTED PHYSICAL GLASS (Sovereign Quality)
     const coreSize = this.size * this.cellSize; 
     const coreGeo = new THREE.BoxGeometry(coreSize, coreSize, coreSize);
-    const coreMat = new THREE.MeshPhysicalMaterial({ 
+    
+    this.coreMat = new THREE.MeshPhysicalMaterial({ 
       color: 0xffffff,    
       metalness: 0.05,      
-      roughness: 0.3,      // SOVEREIGN SIGNATURE FROSTING
+      roughness: 0.3,      // SOVEREIGN SIGNATURE FROSTING (LIGHT THEME)
       transmission: 1.0,   
       thickness: 0.2,      
       clearcoat: 1.0,      
       clearcoatRoughness: 0.02,
-      ior: 1.62,           // SOVEREIGN SIGNATURE IOR (LIGHT THEME DEFAULT)
+      ior: 1.62,           // SOVEREIGN SIGNATURE IOR (LIGHT THEME)
       transparent: true,
       opacity: 1.0,        
       reflectivity: 0.5,
@@ -34,11 +35,11 @@ export class CubeGrid {
       attenuationDistance: 10.0, 
       depthWrite: false,      
     });
-    this.coreMesh = new THREE.Mesh(coreGeo, coreMat);
+    this.coreMesh = new THREE.Mesh(coreGeo, this.coreMat);
     this.coreMesh.renderOrder = 50; // SOVEREIGN: RENDER AFTER PIPES TO BLUR THEM
     this.group.add(this.coreMesh);
 
-    // Outer Edge Highlight
+    // Outer Edge Highlight (Synchronized with rounded shape)
     const outerEdges = new THREE.EdgesGeometry(coreGeo);
     const outerMat = new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 1, transparent: true, opacity: 0.45 });
     const outerWireframe = new THREE.LineSegments(outerEdges, outerMat);
@@ -59,10 +60,10 @@ export class CubeGrid {
 
     // 2. The 6 Faces Grids (3D PHYSICAL BARS)
     const barThickness = 0.02; // SLIGHTLY THICKER FOR STABILITY
-    const barMat = new THREE.MeshBasicMaterial({ 
+    this.barMat = new THREE.MeshBasicMaterial({ 
       color: 0x000000, 
       transparent: true,
-      opacity: 0.07 // WHISPER THIN DARKENING
+      opacity: 0.07 // WHISPER THIN DARKENING (LIGHT THEME)
     });
 
     this.faceGrids = []; // Store for dynamic visibility
@@ -102,14 +103,14 @@ export class CubeGrid {
       // Vertical Bars
       for (let i = 0; i <= this.size; i++) {
         const barGeo = new THREE.BoxGeometry(barThickness, faceSize, barThickness);
-        const bar = new THREE.Mesh(barGeo, barMat);
+        const bar = new THREE.Mesh(barGeo, this.barMat);
         bar.position.x = (i - this.size / 2) * this.cellSize;
         faceGrid.add(bar);
       }
       // Horizontal Bars
       for (let i = 0; i <= this.size; i++) {
         const barGeo = new THREE.BoxGeometry(faceSize, barThickness, barThickness);
-        const bar = new THREE.Mesh(barGeo, barMat);
+        const bar = new THREE.Mesh(barGeo, this.barMat);
         bar.position.y = (i - this.size / 2) * this.cellSize;
         faceGrid.add(bar);
       }
@@ -164,7 +165,8 @@ export class CubeGrid {
   addPlate(faceIndex, u, v, color) {
     const pos = this.getCellPosition(faceIndex, u, v);
     const normal = this.getFaceNormal(faceIndex);
-    const plateGeo = new THREE.CircleGeometry(this.cellSize * 0.35, 32);
+    const plateRadius = this.cellSize * 0.35;
+    const plateGeo = new THREE.CircleGeometry(plateRadius, 32);
     
     // 1. Base Plate - ORIGINAL COLOR RESERVED
     const plateMat = new THREE.MeshPhysicalMaterial({ 
@@ -177,13 +179,23 @@ export class CubeGrid {
       side: THREE.DoubleSide
     });
     const plate = new THREE.Mesh(plateGeo, plateMat);
-    plate.position.copy(pos).add(normal.clone().multiplyScalar(0.121));
+    plate.position.copy(pos).add(normal.clone().multiplyScalar(0.01));
     plate.up.copy(this.getFaceUp(faceIndex));
     plate.lookAt(plate.position.clone().add(normal));
     plate.renderOrder = 20;
     this.group.add(plate);
 
-    // 2. Translucent Label - PURE WHITE OUTLINES
+    // 2. Plate Outline (Subtle White Ring)
+    const outlineGeo = new THREE.EdgesGeometry(plateGeo);
+    const outlineMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6 });
+    const outline = new THREE.LineSegments(outlineGeo, outlineMat);
+    outline.position.copy(plate.position).add(normal.clone().multiplyScalar(0.001));
+    outline.lookAt(outline.position.clone().add(normal));
+    outline.renderOrder = 22;
+    this.group.add(outline);
+
+    // 3. Translucent Label - PURE WHITE OUTLINES (Smaller for better margins)
+    const labelGeo = new THREE.CircleGeometry(this.cellSize * 0.28, 32);
     const labelMat = new THREE.MeshPhysicalMaterial({
       color: 0xffffff,
       transparent: true,
@@ -193,7 +205,7 @@ export class CubeGrid {
       depthWrite: false, // Prevent z-fighting
       side: THREE.DoubleSide
     });
-    const labelMesh = new THREE.Mesh(plateGeo, labelMat);
+    const labelMesh = new THREE.Mesh(labelGeo, labelMat);
     labelMesh.position.copy(plate.position).add(normal.clone().multiplyScalar(0.002));
     labelMesh.up.copy(plate.up);
     labelMesh.lookAt(labelMesh.position.clone().add(normal));

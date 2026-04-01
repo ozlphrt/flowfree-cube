@@ -1,3 +1,5 @@
+import * as THREE from 'three';
+import { soundManager } from './SoundManager.js';
 import { PuzzleGenerator } from './PuzzleGenerator.js';
 import { TextureHelper } from './TextureHelper.js';
 
@@ -113,6 +115,11 @@ export class GameController {
     this.stubs = this.stubs.filter(p => p !== path);
     if (this.completedPaths.indexOf(path) === -1) this.completedPaths.push(path);
     if (this.onUpdate) this.onUpdate();
+
+    // Check for Level Victory
+    if (this.completedPaths.length === this.plates.length / 2) {
+        soundManager.playVictory();
+    }
   }
 
   deletePathByPlate(f, u, v) {
@@ -145,7 +152,10 @@ export class GameController {
         this.completedPaths = this.completedPaths.filter(p => p !== path);
     });
 
-    if (toClear.length > 0 && this.onUpdate) this.onUpdate();
+    if (toClear.length > 0) {
+        soundManager.playVent();
+        if (this.onUpdate) this.onUpdate();
+    }
   }
 
   getCellOccupant(f, u, v) {

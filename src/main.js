@@ -6,6 +6,7 @@ import { InteractionManager } from './InteractionManager.js';
 import { SettingsPanel } from './SettingsPanel.js';
 import { DebugManager } from './DebugManager.js';
 import { BackgroundManager } from './BackgroundManager.js';
+import { soundManager } from './SoundManager.js';
 
 // 1. Setup Scene, Camera, Renderer
 const scene = new THREE.Scene();
@@ -50,9 +51,74 @@ const backgroundManager = new BackgroundManager(scene);
 // 5. Sovereign Debug Panel (CTRL+Shift+Alt+D)
 const debugManager = new DebugManager(gameController, scene, renderer, grid, interactionManager, backgroundManager);
 
+// 6. Settings Management
+function applySettings(settings) {
+    // 1. Level Jump
+    if (settings.levelJump) {
+        gameController.currentLevel = settings.levelJump;
+        gameController.initLevel();
+        localStorage.setItem('sovereign_cube_level', settings.levelJump);
+    }
+    
+    // 2. Audio
+    soundManager.setMuted(!settings.audioEnabled);
+    
+    // 3. Theme
+    if (settings.darkMode) {
+        scene.background = new THREE.Color(0x050505);
+        renderer.toneMappingExposure = 0.7; // NEW DARK DEFAULT
+        scene.environmentIntensity = 0.6;   // NEW DARK DEFAULT
+        ambientLight.intensity = 0.8;       // NEW DARK DEFAULT
+        
+        // Material Physics (Sovereign Quality)
+        grid.coreMat.roughness = 0.40;
+        grid.coreMat.ior = 1.71;
+        
+        // Lights & Effects
+        pointLight1.intensity = 1.0;
+        pointLight2.intensity = 0.5;
+        document.body.classList.add('dark-theme');
+        
+        // Grid visibility
+        if (grid.barMat) {
+            grid.barMat.color.set(0xffffff);
+            grid.barMat.opacity = 0.1; 
+        }
+    } else {
+        scene.background = new THREE.Color(0xdddddd);
+        renderer.toneMappingExposure = 0.9; // LIGHT DEFAULT
+        scene.environmentIntensity = 0.6;   // LIGHT DEFAULT
+        ambientLight.intensity = 0.0;       // LIGHT DEFAULT
+        
+        // Material Physics (Sovereign Quality)
+        grid.coreMat.roughness = 0.30;
+        grid.coreMat.ior = 1.62;
+        
+        // Lights & Effects
+        pointLight1.intensity = 4.5;
+        pointLight2.intensity = 1.0;
+        document.body.classList.remove('dark-theme');
+
+        // Grid visibility
+        if (grid.barMat) {
+            grid.barMat.color.set(0x000000);
+            grid.barMat.opacity = 0.07;
+        }
+    }
+}
+
+const settingsPanel = new SettingsPanel(applySettings);
+
 // 4. UI Hookups
 const victoryModal = document.getElementById('victory-modal');
 const nextLevelBtn = document.getElementById('next-level-btn');
+const compassBtn = document.getElementById('compass-btn');
+
+if (compassBtn) {
+    compassBtn.onclick = () => {
+        interactionManager.resetOrientation();
+    };
+}
 
 function updateHUD() {
     const { completed, total } = gameController.getStats();

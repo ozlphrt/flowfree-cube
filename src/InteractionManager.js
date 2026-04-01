@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { soundManager } from './SoundManager.js';
 
 export class InteractionManager {
   constructor(camera, grid, renderer, gameController, scene) {
@@ -40,6 +41,10 @@ export class InteractionManager {
     this.axisSign = 1; 
     this.lockedDragDir = null;
     this.sensitivityFactor = 1.0; 
+    
+    // Compass Animation
+    this.isResetting = false;
+    this.identityQuaternion = new THREE.Quaternion();
     
     // Victory State
     this.isVictorious = false;
@@ -99,8 +104,16 @@ export class InteractionManager {
         return; 
     }
 
-    if (this.isVictorious) return;
+    if (this.isVictorious) {
+        this.isDragging = true;
+        this.updatePointer(event);
+        this.lastPointer.copy(this.pointer);
+        this.dragStartPoint.set(event.clientX, event.clientY);
+        return; 
+    }
+
     this.isDragging = true;
+    this.isResetting = false; // Cancel any active compass reset
     this.updatePointer(event);
     this.lastPointer.copy(this.pointer);
     this.dragStartPoint.set(event.clientX, event.clientY);
@@ -169,8 +182,6 @@ export class InteractionManager {
   onPointerMove(event) {
     this.activePointers.set(event.pointerId, event);
 
-    if (this.isVictorious) return;
-    
     // Pinch support
     if (this.activePointers.size === 2) {
         const points = Array.from(this.activePointers.values());
@@ -221,6 +232,9 @@ export class InteractionManager {
     }
     
     if (this.activePath) {
+        // Victory Guard: Allow rotation logic to proceed below, but block pipe drawing here
+        if (this.isVictorious) return;
+
         this.raycaster.setFromCamera(this.pointer, this.camera);
         const cellMeshes = this.grid.cells.map(c => c.mesh);
         const cellHit = this.raycaster.intersectObjects(cellMeshes, false)[0]; // CRITICAL FIX: NO RECURSIVE
@@ -245,16 +259,18 @@ export class InteractionManager {
                   if (occ && occ !== this.activePath && !isTarget) return; 
                   
                   this.activePath.cells.push({ f: target.faceIndex, u: target.u, v: target.v });
+                  soundManager.playTick(this.activePath.cells.length);
                 }
                 const head = this.activePath.cells[this.activePath.cells.length - 1];
                 const normal = this.grid.getFaceNormal(head.f);
-                this.lastCell = { ...head, position: this.grid.getCellPosition(head.f, head.u, head.v).add(normal.clone().multiplyScalar(0.121)), normal };
+                this.lastCell = { ...head, position: this.grid.getCellPosition(head.f, head.u, head.v).add(normal.clone().multiplyScalar(0.01)), normal };
                 
                 const plateHit = this.gameController.getPlateAt(head.f, head.u, head.v);
                 if (plateHit && plateHit.color === this.activeColor && plateHit !== this.activePath.startPlate) {
                   this.activePath.isCompleted = true;
                   this.gameController.addCompletedPath(this.activePath);
                   this.redrawEntirePath(this.activePath);
+                  soundManager.playLock();
                   this.onPointerUp();
                   return;
                 }
@@ -321,16 +337,20 @@ export class InteractionManager {
     this.camera.position.copy(camDir.multiplyScalar(this.currentCameraDistance));
 
     if (this.isVictorious) {
-        // Continuous, gradually shifting rotation
-        this.victoryTime += 0.016; 
-        const speed = 0.004;
-        const rx = Math.sin(this.victoryTime * 0.3) * speed;
-        const ry = Math.cos(this.victoryTime * 0.4) * speed;
-        const rz = Math.sin(this.victoryTime * 0.5) * speed;
-        
-        this.grid.group.rotateX(rx);
-        this.grid.group.rotateY(ry);
-        this.grid.group.rotateZ(rz);
+        if (!this.isDragging) {
+            // Continuous, gradually shifting rotation
+            this.victoryTime += 0.016; 
+            const speed = 0.004;
+            const rx = Math.sin(this.victoryTime * 0.3) * speed;
+            const ry = Math.cos(this.victoryTime * 0.4) * speed;
+            const rz = Math.sin(this.victoryTime * 0.5) * speed;
+            
+            this.grid.group.rotateX(rx);
+            this.grid.group.rotateY(ry);
+            this.grid.group.rotateZ(rz);
+        } else {
+            this.victoryTime += 0.016; // Keep time moving for pulse
+        }
 
         // Sovereign Pulse: Breathe the completed pipes
         const pulse = (Math.sin(this.victoryTime * 3.0) * 0.5 + 0.5) * 0.4;
@@ -339,7 +359,6 @@ export class InteractionManager {
                 if (m.material) m.material.emissiveIntensity = pulse;
             });
         });
-        return; 
     }
 
     // Animate Long-Press Dial
@@ -352,9 +371,17 @@ export class InteractionManager {
       }
     }
 
-    this.currentRotationVelocity = THREE.MathUtils.lerp(this.currentRotationVelocity, this.targetRotationVelocity, this.lerpFactor);
-    if (this.lockedLocalAxis !== null && Math.abs(this.currentRotationVelocity) > 0.0001) {
-      this.grid.group.rotateOnAxis(this.lockedLocalAxis, this.currentRotationVelocity * this.axisSign);
+    if (this.isResetting) {
+        this.grid.group.quaternion.slerp(this.identityQuaternion, 0.1);
+        if (this.grid.group.quaternion.angleTo(this.identityQuaternion) < 0.001) {
+            this.grid.group.quaternion.copy(this.identityQuaternion);
+            this.isResetting = false;
+        }
+    } else {
+        this.currentRotationVelocity = THREE.MathUtils.lerp(this.currentRotationVelocity, this.targetRotationVelocity, this.lerpFactor);
+        if (this.lockedLocalAxis !== null && Math.abs(this.currentRotationVelocity) > 0.0001) {
+            this.grid.group.rotateOnAxis(this.lockedLocalAxis, this.currentRotationVelocity * this.axisSign);
+        }
     }
 
     // Dynamic Visibility: Hide grid lines inside/behind
@@ -379,7 +406,7 @@ export class InteractionManager {
         depthWrite: false
       });
       const ribbonW = this.grid.cellSize * 0.45;
-      const surfaceOffset = 0.122;
+      const surfaceOffset = 0.01;
 
       for (let i = 0; i < path.cells.length; i++) {
         path.meshesByCell[i] = [];
@@ -555,6 +582,18 @@ export class InteractionManager {
   }
 
   setSensitivity(val) { this.sensitivityFactor = val; }
+
+  resetOrientation() {
+      // Extract current horizontal spin (Y-axis) to preserve it
+      const euler = new THREE.Euler().setFromQuaternion(this.grid.group.quaternion, 'YXZ');
+      this.identityQuaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), euler.y);
+      
+      this.targetRotationVelocity = 0;
+      this.currentRotationVelocity = 0;
+      this.lockedLocalAxis = null;
+      this.lockedDragDir = null;
+      this.isResetting = true;
+  }
 
   setVictory(isWon) {
       this.isVictorious = isWon;
