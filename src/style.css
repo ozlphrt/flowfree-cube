@@ -545,10 +545,9 @@ canvas {
   opacity: 1;
 }
 
-#compass-btn {
+#compass-btn, #restart-btn {
   position: absolute;
   bottom: 30px;
-  left: 30px;
   width: 44px;
   height: 44px;
   display: flex;
@@ -566,10 +565,17 @@ canvas {
   pointer-events: auto;
 }
 
-#compass-btn:hover {
+#compass-btn { left: 30px; }
+#restart-btn { left: 84px; }
+
+#compass-btn:hover, #restart-btn:hover {
   opacity: 1;
   transform: scale(1.1) rotate(45deg);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+#restart-btn:hover {
+  transform: scale(1.1) rotate(-90deg);
 }
 
 /* Utilities */

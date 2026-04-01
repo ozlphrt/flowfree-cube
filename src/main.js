@@ -113,9 +113,15 @@ const settingsPanel = new SettingsPanel(applySettings);
 const victoryModal = document.getElementById('victory-modal');
 const nextLevelBtn = document.getElementById('next-level-btn');
 const compassBtn = document.getElementById('compass-btn');
+const restartBtn = document.getElementById('restart-btn');
 
 if (compassBtn) {
-    compassBtn.onclick = () => {
+    compassBtn.onclick = () => interactionManager.resetOrientation();
+}
+
+if (restartBtn) {
+    restartBtn.onclick = () => {
+        gameController.initLevel();
         interactionManager.resetOrientation();
     };
 }
