@@ -1,112 +1,93 @@
 import * as THREE from 'three';
 
 export class CubeGrid {
-  constructor(scene, size = 9, cellSize = 1.0) {
+  constructor(scene, size = 5, cellSize = 1.0) {
     this.scene = scene;
     this.size = size;
     this.cellSize = cellSize;
     
     this.group = new THREE.Group();
-    // The visual scale of the whole cube is size * cellSize
     this.halfExtents = (this.size * this.cellSize) / 2;
 
     this.cells = [];
     this.initVisuals();
-
-    // Center the group
     this.scene.add(this.group);
   }
 
   initVisuals() {
-    // 1. Core Cube (the solid block underneath) - UPGRADED TO PHYSICAL GLASS
+    // 1. Core Cube - FROSTED PHYSICAL GLASS (Sovereign Quality)
     const coreSize = this.size * this.cellSize; 
     const coreGeo = new THREE.BoxGeometry(coreSize, coreSize, coreSize);
     const coreMat = new THREE.MeshPhysicalMaterial({ 
-      color: 0xcccccc,    // Lighter base for glassmorphism
-      metalness: 0.1,
-      roughness: 0.45,    // FROSTED effect
-      transmission: 0.95, // High transparency
-      thickness: 1.0,     // Solid block feel
-      ior: 1.45,          // Clearer refraction
+      color: 0xffffff,    
+      metalness: 0.05,      
+      roughness: 0.3,      // SOVEREIGN SIGNATURE FROSTING
+      transmission: 1.0,   
+      thickness: 0.2,      
+      clearcoat: 1.0,      
+      clearcoatRoughness: 0.02,
+      ior: 1.38,           // SOVEREIGN SIGNATURE IOR 
       transparent: true,
-      opacity: 1,
-      reflectivity: 0.8,
+      opacity: 1.0,        
+      reflectivity: 0.5,
       attenuationColor: new THREE.Color(0xffffff), 
-      attenuationDistance: 8.0, // Let more light in so it's not pitch black
+      attenuationDistance: 10.0, 
+      depthWrite: false,      
     });
     this.coreMesh = new THREE.Mesh(coreGeo, coreMat);
     this.group.add(this.coreMesh);
 
-    // 1.1 Add a solid outer wireframe for the cube border
+    // Outer Edge Highlight
     const outerEdges = new THREE.EdgesGeometry(coreGeo);
-    const outerMat = new THREE.LineBasicMaterial({ color: 0x333333, linewidth: 2 });
+    const outerMat = new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 1, transparent: true, opacity: 0.25 });
     const outerWireframe = new THREE.LineSegments(outerEdges, outerMat);
     this.group.add(outerWireframe);
 
     // 2. The 6 Faces Grids
     const faces = [
-      { normal: new THREE.Vector3(0, 0, 1), uAxis: 'x', vAxis: 'y' }, // Front
-      { normal: new THREE.Vector3(0, 0, -1), uAxis: 'x', vAxis: 'y' }, // Back
-      { normal: new THREE.Vector3(1, 0, 0), uAxis: 'z', vAxis: 'y' }, // Right
-      { normal: new THREE.Vector3(-1, 0, 0), uAxis: 'z', vAxis: 'y' }, // Left
-      { normal: new THREE.Vector3(0, 1, 0), uAxis: 'x', vAxis: 'z' }, // Top
-      { normal: new THREE.Vector3(0, -1, 0), uAxis: 'x', vAxis: 'z' }  // Bottom
+      { normal: new THREE.Vector3(0, 0, 1) },  // Front
+      { normal: new THREE.Vector3(0, 0, -1) }, // Back
+      { normal: new THREE.Vector3(1, 0, 0) },  // Right
+      { normal: new THREE.Vector3(-1, 0, 0) }, // Left
+      { normal: new THREE.Vector3(0, 1, 0) },  // Top
+      { normal: new THREE.Vector3(0, -1, 0) }  // Bottom
     ];
 
     const cellGeo = new THREE.PlaneGeometry(this.cellSize, this.cellSize);
-    const cellMat = new THREE.MeshBasicMaterial({ 
-      visible: false // KEEP INVISIBLE to solve Z-fighting and sorting
-    });
-
-    // Create a thinner line material for internal grid lines
+    // CRITICAL FIX: depthWrite MUST be false so invisible cells don't block visual transparency
+    const cellMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0, depthWrite: false });
     const edgeGeo = new THREE.EdgesGeometry(cellGeo);
-    const edgeMat = new THREE.LineBasicMaterial({ color: 0x1a1a1a, transparent: true, opacity: 0.5 });
+    const edgeMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5 }); // BROUGHT UP FOR VISIBILITY
 
     faces.forEach((face, faceIndex) => {
       for (let u = 0; u < this.size; u++) {
         for (let v = 0; v < this.size; v++) {
-          
-          const mesh = new THREE.Mesh(cellGeo, cellMat);
-          // Set user data for raypicking (u,v,faceIndex)
+          const mesh = new THREE.Mesh(cellGeo, cellMat.clone());
           mesh.userData = { faceIndex, u, v, normal: face.normal };
-
-          // Clone material so we can highlight individual cells
-          mesh.material = cellMat.clone();
-
+          
           const lines = new THREE.LineSegments(edgeGeo, edgeMat);
           mesh.add(lines);
 
-          // Calculate position
-          // Offset to center of cells
           const uOffset = (u - this.size / 2 + 0.5) * this.cellSize;
           const vOffset = (v - this.size / 2 + 0.5) * this.cellSize;
-
           mesh.position.copy(face.normal).multiplyScalar(this.halfExtents);
           
           if (face.normal.z !== 0) {
             mesh.position.x = face.normal.z > 0 ? uOffset : -uOffset;
             mesh.position.y = vOffset;
-            mesh.lookAt(mesh.position.clone().add(face.normal));
           } else if (face.normal.x !== 0) {
             mesh.position.z = face.normal.x > 0 ? -uOffset : uOffset;
             mesh.position.y = vOffset;
-            mesh.lookAt(mesh.position.clone().add(face.normal));
-          } else if (face.normal.y !== 0) {
+          } else {
             mesh.position.x = uOffset;
             mesh.position.z = face.normal.y > 0 ? -vOffset : vOffset;
-            // lookAt for Y normals sometimes needs specific up vector handling to align nicely
-            mesh.lookAt(mesh.position.clone().add(face.normal));
           }
-
-          mesh.receiveShadow = true;
+          mesh.lookAt(mesh.position.clone().add(face.normal));
           this.group.add(mesh);
           this.cells.push({ faceIndex, u, v, mesh: mesh });
         }
       }
     });
-
-    // To add soft shadows and visually separate cube
-    this.group.castShadow = true;
   }
 
   getCell(faceIndex, u, v) {
@@ -115,12 +96,9 @@ export class CubeGrid {
 
   getFaceNormal(faceIndex) {
     const faces = [
-      new THREE.Vector3(0, 0, 1),  // Front
-      new THREE.Vector3(0, 0, -1), // Back
-      new THREE.Vector3(1, 0, 0),  // Right
-      new THREE.Vector3(-1, 0, 0), // Left
-      new THREE.Vector3(0, 1, 0),  // Top
-      new THREE.Vector3(0, -1, 0)  // Bottom
+      new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 0, -1), 
+      new THREE.Vector3(1, 0, 0), new THREE.Vector3(-1, 0, 0), 
+      new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, -1, 0)
     ];
     return faces[faceIndex].clone();
   }
@@ -129,63 +107,36 @@ export class CubeGrid {
     const normal = this.getFaceNormal(faceIndex);
     const uOffset = (u - this.size / 2 + 0.5) * this.cellSize;
     const vOffset = (v - this.size / 2 + 0.5) * this.cellSize;
-
     const pos = normal.clone().multiplyScalar(this.halfExtents);
-    
-    if (normal.z !== 0) {
-      pos.x = normal.z > 0 ? uOffset : -uOffset;
-      pos.y = vOffset;
-    } else if (normal.x !== 0) {
-      pos.z = normal.x > 0 ? -uOffset : uOffset;
-      pos.y = vOffset;
-    } else if (normal.y !== 0) {
-      pos.x = uOffset;
-      pos.z = normal.y > 0 ? -vOffset : vOffset;
-    }
+    if (normal.z !== 0) { pos.x = normal.z > 0 ? uOffset : -uOffset; pos.y = vOffset; }
+    else if (normal.x !== 0) { pos.z = normal.x > 0 ? -uOffset : uOffset; pos.y = vOffset; }
+    else { pos.x = uOffset; pos.z = normal.y > 0 ? -vOffset : vOffset; }
     return pos;
   }
 
   addPlate(faceIndex, u, v, color) {
     const pos = this.getCellPosition(faceIndex, u, v);
     const normal = this.getFaceNormal(faceIndex);
-    
-    // 2D Circle Disc for a clean surface look
-    const plateGeo = new THREE.CircleGeometry(this.cellSize * 0.4, 32);
-    const plateMat = new THREE.MeshStandardMaterial({ 
-      color: color, 
-      roughness: 0.8, 
+    const plateGeo = new THREE.CircleGeometry(this.cellSize * 0.35, 32);
+    const plateMat = new THREE.MeshPhysicalMaterial({ 
+      color: new THREE.Color(color).multiplyScalar(0.7), 
+      roughness: 0.4, 
       metalness: 0.1,
-      emissive: new THREE.Color(color),
-      emissiveIntensity: 0.4,
-      transparent: true,
-      side: THREE.DoubleSide // Ensure it's visible if oriented slightly off
+      clearcoat: 0.3, 
+      emissiveIntensity: 0.0,
+      transparent: false, // SOLID
+      opacity: 1.0,       // OPAQUE FOR GLASS REFRACTION
+      side: THREE.DoubleSide
     });
     const mesh = new THREE.Mesh(plateGeo, plateMat);
-    
-    // High offset (0.15) and renderOrder to prevent glass refraction blurring
-    mesh.position.copy(pos).add(normal.clone().multiplyScalar(0.15));
-    mesh.renderOrder = 20; // Force it on top of the glass
-    mesh.material.depthWrite = true; 
-    
-    // 1. Orient the disc to be UPRIGHT on its face
-    const upVectors = [
-      new THREE.Vector3(0, 1, 0),  // Front (Z+)
-      new THREE.Vector3(0, 1, 0),  // Back (Z-)
-      new THREE.Vector3(0, 1, 0),  // Right (X+)
-      new THREE.Vector3(0, 1, 0),  // Left (X-)
-      new THREE.Vector3(0, 0, -1), // Top (Y+)
-      new THREE.Vector3(0, 0, 1)   // Bottom (Y-)
-    ];
-    mesh.up.copy(upVectors[faceIndex]);
+    mesh.position.copy(pos).add(normal.clone().multiplyScalar(0.121));
+    mesh.renderOrder = 20;
     mesh.lookAt(mesh.position.clone().add(normal));
-
     this.group.add(mesh);
     return mesh;
   }
 
-  update() {
-    // E.g. subtle idle animation if needed
-  }
+  update() {}
 
   getNeighborCells(cell) {
     const { f, u, v } = cell;

@@ -9,42 +9,41 @@ export class SettingsPanel {
   }
 
   initUI() {
-    // Create settings button
-    const container = document.createElement('div');
-    container.id = 'settings-container';
-    document.body.appendChild(container);
+    this.btn = document.getElementById('settings-btn');
+    this.panel = document.getElementById('settings-panel');
+    this.slider = document.getElementById('sensitivity-slider');
+    this.valDisplay = document.getElementById('sensitivity-val');
+    this.closeBtn = document.getElementById('close-settings');
 
-    const btn = document.createElement('button');
-    btn.id = 'settings-btn';
-    btn.innerHTML = '⚙️';
-    container.appendChild(btn);
+    if (!this.btn || !this.panel || !this.slider) return;
 
-    // Create panel
-    const panel = document.createElement('div');
-    panel.id = 'settings-panel';
-    panel.className = 'hidden';
-    panel.innerHTML = `
-      <h3>Settings</h3>
-      <div class="setting-item">
-        <label>Rotation Sensitivity</label>
-        <span id="sensitivity-val">${this.sensitivity.toFixed(1)}x</span>
-        <input type="range" id="sensitivity-slider" min="0.5" max="3.0" step="0.1" value="${this.sensitivity}">
-      </div>
-      <button id="close-settings">Close</button>
-    `;
-    container.appendChild(panel);
+    this.slider.value = this.sensitivity;
+    this.valDisplay.innerText = this.sensitivity.toFixed(1);
 
-    const slider = panel.querySelector('#sensitivity-slider');
-    const valDisplay = panel.querySelector('#sensitivity-val');
+    this.btn.onclick = (e) => {
+      e.stopPropagation();
+      this.panel.classList.toggle('hidden');
+    };
 
-    btn.onclick = () => panel.classList.toggle('hidden');
-    panel.querySelector('#close-settings').onclick = () => panel.classList.add('hidden');
+    if (this.closeBtn) {
+      this.closeBtn.onclick = (e) => {
+        e.stopPropagation();
+        this.panel.classList.add('hidden');
+      };
+    }
 
-    slider.oninput = (e) => {
+    this.slider.oninput = (e) => {
       this.sensitivity = parseFloat(e.target.value);
-      valDisplay.innerText = this.sensitivity.toFixed(1) + 'x';
+      this.valDisplay.innerText = this.sensitivity.toFixed(1);
       localStorage.setItem('flowfree_sensitivity', this.sensitivity);
       this.onChange(this.sensitivity);
     };
+
+    // Close on click outside
+    window.addEventListener('pointerdown', (e) => {
+      if (!this.panel.contains(e.target) && e.target !== this.btn) {
+        this.panel.classList.add('hidden');
+      }
+    });
   }
 }

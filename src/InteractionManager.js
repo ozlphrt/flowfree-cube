@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { TextureHelper } from './TextureHelper.js';
 
 export class InteractionManager {
   constructor(camera, grid, renderer, gameController, scene) {
@@ -13,6 +12,7 @@ export class InteractionManager {
     this.pointer = new THREE.Vector2();
 
     this.isDragging = false;
+    this.lastPointer = new THREE.Vector2();
     this.dragStartPoint = new THREE.Vector2();
     this.currentDragVector = new THREE.Vector2();
     
@@ -23,16 +23,27 @@ export class InteractionManager {
     this.lastCell = null;
     this.currentSegmentAxis = null;
 
+    // Selective Interaction (Sovereign Dial)
+    this.longPressTimer = null;
+    this.longPressStartTime = 0;
+    this.LONG_PRESS_DURATION = 600; // ms
+    this.dialEl = document.getElementById('long-press-dial');
+    this.dialProgressEl = this.dialEl?.querySelector('.progress');
+    this.isLongPress = false;
+
     // Rotation parameters
-    this.targetRotationVelocity = 0;
     this.currentRotationVelocity = 0;
-    this.lerpFactor = 0.1; 
-    
-    // Axis locking state
+    this.targetRotationVelocity = 0;
+    this.lerpFactor = 0.25; // SNAPPIER MOVEMENT
+    this.sensitivityFactor = 1.0; 
     this.lockedLocalAxis = null; 
     this.axisSign = 1; 
     this.lockedDragDir = null;
     this.sensitivityFactor = 1.0; 
+    
+    // Victory State
+    this.isVictorious = false;
+    this.victoryTime = 0;
 
     this.initEvents();
   }
@@ -51,27 +62,51 @@ export class InteractionManager {
   }
 
   onPointerDown(event) {
+    if (this.isVictorious) return;
+    this.isDragging = true;
     this.updatePointer(event);
-    this.raycaster.setFromCamera(this.pointer, this.camera);
-    const intersects = this.raycaster.intersectObjects(this.grid.group.children, true);
+    this.lastPointer.copy(this.pointer);
+    this.dragStartPoint.set(event.clientX, event.clientY);
+    this.lockedLocalAxis = null;
+    this.lockedDragDir = null;
     
-    if (intersects.length > 0) {
-      this.isDragging = true;
-      this.lockedLocalAxis = null; 
-      this.lockedDragDir = null;
-      this.dragStartPoint.set(event.clientX, event.clientY);
-      const cellHit = intersects.find(i => i.object.userData && i.object.userData.faceIndex !== undefined);
+    this.raycaster.setFromCamera(this.pointer, this.camera);
+    const cellMeshes = this.grid.cells.map(c => c.mesh);
+    const cellHit = this.raycaster.intersectObjects(cellMeshes, false)[0]; // CRITICAL FIX: NO RECURSIVE (Ignore Lines)
+    
+    if (cellHit) {
+      const data = cellHit.object.userData;
+      const plate = this.gameController.getPlateAt(data.faceIndex, data.u, data.v);
+      const occupant = this.gameController.getCompletedPathByPlate(data.faceIndex, data.u, data.v) || 
+                       this.gameController.stubs.find(s => s.cells.some(c => c.f === data.faceIndex && c.u === data.u && c.v === data.v));
       
-      if (cellHit) {
-        const data = cellHit.object.userData;
-        const plate = this.gameController.getPlateAt(data.faceIndex, data.u, data.v);
+      if (plate || occupant) {
+        this.isLongPress = false;
+        this.longPressStartTime = Date.now();
         
+        if (this.dialEl) {
+          this.dialEl.style.left = `${event.clientX}px`;
+          this.dialEl.style.top = `${event.clientY}px`;
+          this.dialEl.classList.remove('hidden');
+          if (this.dialProgressEl) this.dialProgressEl.style.strokeDashoffset = '151';
+        }
+        
+        clearTimeout(this.longPressTimer);
+        this.longPressTimer = setTimeout(() => {
+          this.isLongPress = true;
+          this.gameController.deletePathByPlate(data.faceIndex, data.u, data.v);
+          this.onPointerUp();
+        }, this.LONG_PRESS_DURATION);
+
         if (plate) {
           const stubAtPlate = this.gameController.stubs.find(s => s.startPlate === plate);
-          const completedAtPlate = this.gameController.completedPaths.find(p => p.cells.some(c => c.f === data.faceIndex && c.u === data.u && c.v === data.v));
+          const completedAtPlate = this.gameController.getCompletedPathByPlate(data.faceIndex, data.u, data.v);
 
           if (completedAtPlate) {
-             this.gameController.deletePathByPlate(data.faceIndex, data.u, data.v);
+             this.activePath = completedAtPlate;
+             this.activeColor = plate.color;
+             this.activeLabel = plate.label;
+             this.lastCell = { f: data.faceIndex, u: data.u, v: data.v, position: cellHit.point.clone(), normal: this.grid.getFaceNormal(data.faceIndex) };
              return; 
           }
 
@@ -82,43 +117,47 @@ export class InteractionManager {
              this.activePath.cells = [ { f: data.faceIndex, u: data.u, v: data.v } ]; 
              this.redrawEntirePath(this.activePath);
              const normal = this.grid.getFaceNormal(data.faceIndex);
-             this.lastCell = { f: data.faceIndex, u: data.u, v: data.v, position: cellHit.object.position.clone().add(normal.multiplyScalar(0.12)), normal };
+             this.lastCell = { f: data.faceIndex, u: data.u, v: data.v, position: cellHit.point.clone(), normal };
           } else {
             this.activeColor = plate.color;
             this.activeLabel = plate.label;
             const faceNormal = this.grid.getFaceNormal(data.faceIndex);
-            this.lastCell = { f: data.faceIndex, u: data.u, v: data.v, position: cellHit.object.position.clone().add(faceNormal.clone().multiplyScalar(0.12)), normal: faceNormal };
+            this.lastCell = { f: data.faceIndex, u: data.u, v: data.v, position: cellHit.point.clone(), normal: faceNormal };
             this.activePath = {
                color: this.activeColor, label: this.activeLabel, startPlate: plate,
                cells: [{ f: data.faceIndex, u: data.u, v: data.v }], meshesByCell: {}, meshes: [], isCompleted: false
             };
           }
           this.gameController.setPlateHighlight(plate, true);
-        } else {
-          const occupant = this.gameController.getCellOccupant(data.faceIndex, data.u, data.v);
-          if (occupant) {
-                this.activeColor = occupant.color;
-                this.activeLabel = occupant.label;
-                this.activePath = occupant;
-                this.activePath.isCompleted = false;
-                if (this.gameController.completedPaths.includes(occupant)) {
-                    this.gameController.completedPaths = this.gameController.completedPaths.filter(p => p !== occupant);
-                    this.gameController.stubs.push(occupant);
-                }
-                const cellIdx = occupant.cells.findIndex(c => c.f === data.faceIndex && c.u === data.u && c.v === data.v);
-                this.activePath.cells = this.activePath.cells.slice(0, cellIdx + 1);
-                this.redrawEntirePath(this.activePath);
-                const normal = this.grid.getFaceNormal(data.faceIndex);
-                this.lastCell = { f: data.faceIndex, u: data.u, v: data.v, position: this.grid.getCellPosition(data.faceIndex, data.u, data.v).add(normal.clone().multiplyScalar(0.12)), normal: normal };
-                this.gameController.setPlateHighlight(occupant.startPlate, true);
-          }
+        } else if (occupant && !occupant.isCompleted) {
+          // MID-PIPE EDITING ALLOWED ONLY FOR INCOMPLETE PATHS
+          this.activeColor = occupant.color;
+          this.activeLabel = occupant.label;
+          this.activePath = occupant;
+          this.activePath.isCompleted = false;
+          this.gameController.removeCompletedPath(occupant);
+          const cellIdx = occupant.cells.findIndex(c => c.f === data.faceIndex && c.u === data.u && c.v === data.v);
+          this.activePath.cells = this.activePath.cells.slice(0, cellIdx + 1);
+          this.redrawEntirePath(this.activePath);
+          const normal = this.grid.getFaceNormal(data.faceIndex);
+          this.lastCell = { f: data.faceIndex, u: data.u, v: data.v, position: cellHit.point.clone(), normal };
+          this.gameController.setPlateHighlight(occupant.startPlate, true);
         }
       }
     }
   }
 
   onPointerMove(event) {
+    if (this.isVictorious) return;
     if (!this.isDragging) return;
+    
+    // Distance check to cancel long-press if moved too far
+    const moved = Math.sqrt((event.clientX - this.dragStartPoint.x)**2 + (event.clientY - this.dragStartPoint.y)**2);
+    if (moved > 15) {
+      clearTimeout(this.longPressTimer);
+      this.dialEl?.classList.add('hidden');
+    }
+
     this.updatePointer(event);
     
     const dx = event.clientX - this.dragStartPoint.x;
@@ -133,213 +172,274 @@ export class InteractionManager {
         let shouldRotate = false;
         const pushThreshold = 0.15; 
         if (this.lockedDragDir === 'x') {
-            if ((u === 0 && vx < -pushThreshold) || (u === 8 && vx > pushThreshold)) shouldRotate = true;
+            if ((u === 0 && vx < -pushThreshold) || (u === this.grid.size-1 && vx > pushThreshold)) shouldRotate = true;
         } else if (this.lockedDragDir === 'y') {
-            if ((v === 0 && vy < -pushThreshold) || (v === 8 && vy > pushThreshold)) shouldRotate = true;
+            if ((v === 0 && vy < -pushThreshold) || (v === this.grid.size-1 && vy > pushThreshold)) shouldRotate = true;
         }
-        actualSpeed = shouldRotate ? -0.012 : 0;
+        actualSpeed = shouldRotate ? -0.15 : 0; // INCREASED PUSH FORCE
     } else {
-        const distFromCenter = Math.sqrt(this.pointer.x ** 2 + this.pointer.y ** 2);
-        actualSpeed = 0.065 * Math.pow(distFromCenter, 1.0); 
+        actualSpeed = 1.5; // INCREASED FREE ROTATION SPEED
     }
     
     if (this.activePath) {
         this.raycaster.setFromCamera(this.pointer, this.camera);
-        const intersects = this.raycaster.intersectObjects(this.grid.group.children, true);
-        const cellHit = intersects.find(i => i.object.userData && i.object.userData.faceIndex !== undefined);
+        const cellMeshes = this.grid.cells.map(c => c.mesh);
+        const cellHit = this.raycaster.intersectObjects(cellMeshes, false)[0]; // CRITICAL FIX: NO RECURSIVE
 
         if (cellHit) {
           const target = cellHit.object.userData;
           if (target.faceIndex !== this.lastCell.f || target.u !== this.lastCell.u || target.v !== this.lastCell.v) {
             
-            // Lookback corner cutting (now "Adjacency-Only")
-            if (this.activePath.cells.length > 2) {
-                // Only check the previous few cells to allow long winding paths
-                const lookbackLimit = Math.max(0, this.activePath.cells.length - 10);
-                for (let j = this.activePath.cells.length - 3; j >= lookbackLimit; j--) {
-                    const prev = this.activePath.cells[j];
-                    // Only shortcut if target is an IMMEDIATE NEIGHBOR of an earlier cell
-                    const isNeighbor = Math.abs(prev.u - target.u) + Math.abs(prev.v - target.v) === 1;
-                    if (prev.f === target.faceIndex && isNeighbor) {
-                        this.activePath.cells = this.activePath.cells.slice(0, j + 1);
-                        const normal = this.grid.getFaceNormal(prev.f);
-                        this.lastCell = { ...prev, position: this.grid.getCellPosition(prev.f, prev.u, prev.v).add(normal.clone().multiplyScalar(0.12)), normal };
-                        this.currentSegmentAxis = null;
-                        break;
-                    }
+            // Adjacency Only Logic
+            const isNeighbor = this.grid.getNeighborCells(this.lastCell).some(n => n.f === target.faceIndex && n.u === target.u && n.v === target.v);
+            if (isNeighbor) {
+                const collideIdx = this.activePath.cells.findIndex(c => c.f === target.faceIndex && c.u === target.u && c.v === target.v);
+                if (collideIdx !== -1) {
+                  this.activePath.cells = this.activePath.cells.slice(0, collideIdx + 1);
+                } else {
+                  const occ = this.gameController.getCellOccupant(target.faceIndex, target.u, target.v);
+                  if (occ && occ !== this.activePath) return; // Prevent overwriting
+                  this.activePath.cells.push({ f: target.faceIndex, u: target.u, v: target.v });
                 }
-            }
-
-            const collideIdx = this.activePath.cells.findIndex(c => c.f === target.faceIndex && c.u === target.u && c.v === target.v);
-            if (collideIdx !== -1 && collideIdx < this.activePath.cells.length - 1) {
-              this.activePath.cells = this.activePath.cells.slice(0, collideIdx + 1);
-              const cell = this.activePath.cells[collideIdx];
-              const normal = this.grid.getFaceNormal(cell.f);
-              this.lastCell = { ...cell, position: this.grid.getCellPosition(cell.f, cell.u, cell.v).add(normal.clone().multiplyScalar(0.12)), normal };
-              this.redrawEntirePath(this.activePath);
-              return; 
-            }
-
-            let head = this.lastCell;
-            let stepsTaken = 0;
-            const maxSteps = 20;
-            const tUD = target.u - head.u;
-            const tVD = target.v - head.v;
-            let pAxis = this.currentSegmentAxis;
-            if (!pAxis || (Math.abs(tUD) > Math.abs(tVD) * 1.5)) pAxis = 'u';
-            else if (Math.abs(tVD) > Math.abs(tUD) * 1.5) pAxis = 'v';
-            else if (!pAxis) pAxis = Math.abs(tUD) >= Math.abs(tVD) ? 'u' : 'v';
-
-            while (stepsTaken < maxSteps) {
-               const uD = target.u - head.u;
-               const vD = target.v - head.v;
-               const sameF = target.faceIndex === head.f;
-               let nC = null;
-               if (sameF) {
-                  if (pAxis === 'u' && Math.abs(uD) > 0) nC = { f: head.f, u: head.u + Math.sign(uD), v: head.v };
-                  else if (Math.abs(vD) > 0) nC = { f: head.f, u: head.u, v: head.v + Math.sign(vD) };
-                  else if (Math.abs(uD) > 0) nC = { f: head.f, u: head.u + Math.sign(uD), v: head.v };
-               } else nC = this.grid.getNeighborCells(head).find(c => c.f === target.faceIndex);
-
-               if (!nC || (nC.f === head.f && nC.u === head.u && nC.v === head.v)) break;
-
-               const occ = this.gameController.getCellOccupant(nC.f, nC.u, nC.v);
-               if (occ && occ.color === this.activeColor && occ.label === this.activeLabel && occ !== this.activePath) {
-                  const m = this.gameController.mergePaths(this.activePath, occ, nC);
-                  if (m) { this.redrawEntirePath(m); this.activePath = null; return; }
-               }
-               if (occ && (occ.color !== this.activeColor || occ.label !== this.activeLabel)) break; 
-
-               this.currentSegmentAxis = (nC.u !== head.u) ? 'u' : 'v';
-               this.activePath.cells.push({ ...nC });
-               head = { ...nC };
-               this.lastCell = { ...head, position: this.grid.getCellPosition(head.f, head.u, head.v).add(this.grid.getFaceNormal(head.f).multiplyScalar(0.12)), normal: this.grid.getFaceNormal(head.f) };
-               
-               const pHit = this.gameController.getPlateAt(head.f, head.u, head.v);
-               this.redrawEntirePath(this.activePath);
-
-               if (pHit && pHit.color === this.activeColor && pHit.label === this.activeLabel && pHit !== this.activePath.startPlate) {
+                const head = this.activePath.cells[this.activePath.cells.length - 1];
+                const normal = this.grid.getFaceNormal(head.f);
+                this.lastCell = { ...head, position: this.grid.getCellPosition(head.f, head.u, head.v).add(normal.clone().multiplyScalar(0.121)), normal };
+                
+                const plateHit = this.gameController.getPlateAt(head.f, head.u, head.v);
+                if (plateHit && plateHit.color === this.activeColor && plateHit !== this.activePath.startPlate) {
                   this.activePath.isCompleted = true;
                   this.gameController.addCompletedPath(this.activePath);
                   this.redrawEntirePath(this.activePath);
-                  this.activePath = null;
+                  this.onPointerUp();
                   return;
-               }
-               if (head.f === target.faceIndex && head.u === target.u && head.v === target.v) break;
-               stepsTaken++;
+                }
+                this.redrawEntirePath(this.activePath);
             }
           }
         }
     }
 
-    const rotThresh = 25; 
+    const rotThresh = 15; 
     if (this.lockedLocalAxis === null && (Math.abs(dx) > rotThresh || Math.abs(dy) > rotThresh)) {
         this.lockedDragDir = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+        
         const iWA = this.lockedDragDir === 'x' ? new THREE.Vector3(0, 1, 0).applyQuaternion(this.camera.quaternion).normalize() : new THREE.Vector3(1, 0, 0).applyQuaternion(this.camera.quaternion).normalize();
-        const dts = [{ axis: new THREE.Vector3(1, 0, 0), dotWorld: new THREE.Vector3(1, 0, 0).applyQuaternion(this.grid.group.quaternion) }, { axis: new THREE.Vector3(0, 1, 0), dotWorld: new THREE.Vector3(0, 1, 0).applyQuaternion(this.grid.group.quaternion) }, { axis: new THREE.Vector3(0, 0, 1), dotWorld: new THREE.Vector3(0, 0, 1).applyQuaternion(this.grid.group.quaternion) }];
+        const dts = [
+            { axis: new THREE.Vector3(1, 0, 0), dotWorld: new THREE.Vector3(1, 0, 0).applyQuaternion(this.grid.group.quaternion) },
+            { axis: new THREE.Vector3(0, 1, 0), dotWorld: new THREE.Vector3(0, 1, 0).applyQuaternion(this.grid.group.quaternion) },
+            { axis: new THREE.Vector3(0, 0, 1), dotWorld: new THREE.Vector3(0, 0, 1).applyQuaternion(this.grid.group.quaternion) }
+        ];
         dts.sort((a, b) => Math.abs(b.dotWorld.dot(iWA)) - Math.abs(a.dotWorld.dot(iWA)));
         this.lockedLocalAxis = dts[0].axis;
         this.axisSign = Math.sign(dts[0].dotWorld.dot(iWA)) || 1;
     }
-    if (this.lockedLocalAxis !== null) this.targetRotationVelocity = (this.lockedDragDir === 'x' ? vx : vy) * actualSpeed * this.sensitivityFactor;
+
+    if (this.lockedLocalAxis !== null) {
+        // Standardize delta signs: Moving UP/RIGHT should always rotate in the intuitive direction
+        const deltaX = this.pointer.x - this.lastPointer.x;
+        const deltaY = this.pointer.y - this.lastPointer.y;
+        
+        // Final Fix: Apply a 1.5x multiplier to vertical movement to overcome screen aspect ratio stiffness
+        const delta = (this.lockedDragDir === 'x' ? deltaX : -deltaY * 1.5);
+        this.targetRotationVelocity = delta * actualSpeed * this.sensitivityFactor; 
+    }
+    
+    this.lastPointer.copy(this.pointer);
   }
 
   onPointerUp() {
+    clearTimeout(this.longPressTimer);
+    this.dialEl?.classList.add('hidden');
     this.isDragging = false;
     this.targetRotationVelocity = 0;
-    if (this.activePath) {
-      if (!this.activePath.isCompleted) {
-        if (this.gameController.stubs.indexOf(this.activePath) === -1) this.gameController.addStub(this.activePath);
-      }
-      this.gameController.setPlateHighlight(this.activePath.startPlate, false);
+    this.lockedLocalAxis = null; // KEY FIX: RESET AXIS LOCK
+    this.lockedDragDir = null;   // KEY FIX: RESET DRAG DIRECTION
+    if (this.activePath && !this.activePath.isCompleted) {
+       if (this.gameController.stubs.indexOf(this.activePath) === -1) this.gameController.addStub(this.activePath);
+       this.gameController.setPlateHighlight(this.activePath.startPlate, false);
     }
-    this.activePath = null; this.activeColor = null; this.activeLabel = null; this.lastCell = null; this.currentSegmentAxis = null;
+    this.activePath = null;
+    this.activeColor = null;
+    this.lastCell = null;
   }
 
   update() {
-    const intensity = 0.6 + Math.sin(Date.now() * 0.003) * 0.4;
-    this.gameController.completedPaths.forEach(path => {
-      path.meshes.forEach(m => m.material.emissiveIntensity = intensity);
-      this.gameController.getPlates(path.color, path.label).forEach(p => { p.mesh.material.emissiveIntensity = intensity; });
-    });
+    if (this.isVictorious) {
+        // Continuous, gradually shifting rotation
+        this.victoryTime += 0.016; 
+        const speed = 0.004;
+        const rx = Math.sin(this.victoryTime * 0.3) * speed;
+        const ry = Math.cos(this.victoryTime * 0.4) * speed;
+        const rz = Math.sin(this.victoryTime * 0.5) * speed;
+        
+        this.grid.group.rotateX(rx);
+        this.grid.group.rotateY(ry);
+        this.grid.group.rotateZ(rz);
+
+        // Sovereign Pulse: Breathe the completed pipes
+        const pulse = (Math.sin(this.victoryTime * 3.0) * 0.5 + 0.5) * 0.4;
+        this.gameController.completedPaths.forEach(path => {
+            path.meshes.forEach(m => {
+                if (m.material) m.material.emissiveIntensity = pulse;
+            });
+        });
+        return; 
+    }
+
+    // Animate Long-Press Dial
+    if (this.isDragging && !this.isLongPress && this.longPressStartTime > 0) {
+      const elapsed = Date.now() - this.longPressStartTime;
+      const t = Math.min(1, elapsed / this.LONG_PRESS_DURATION);
+      if (this.dialProgressEl) {
+          const offset = 151 * (1 - t);
+          this.dialProgressEl.style.strokeDashoffset = offset.toString();
+      }
+    }
+
     this.currentRotationVelocity = THREE.MathUtils.lerp(this.currentRotationVelocity, this.targetRotationVelocity, this.lerpFactor);
-    if (this.lockedLocalAxis !== null && Math.abs(this.currentRotationVelocity) > 0.0001) this.grid.group.rotateOnAxis(this.lockedLocalAxis, this.currentRotationVelocity * this.axisSign);
+    if (this.lockedLocalAxis !== null && Math.abs(this.currentRotationVelocity) > 0.0001) {
+      this.grid.group.rotateOnAxis(this.lockedLocalAxis, this.currentRotationVelocity * this.axisSign);
+    }
   }
 
   redrawEntirePath(path) {
     path.meshes.forEach(m => this.grid.group.remove(m));
     path.meshes = [];
     path.meshesByCell = {};
+    const pipeR = 0.25; 
 
+    const isActive = (path === this.activePath && !path.isCompleted);
+    const op = isActive ? (window.activePipeOpacity || 0.65) : 1.0;
+
+    const mat = new THREE.MeshPhysicalMaterial({ 
+      color: new THREE.Color(path.color),
+      emissive: new THREE.Color(path.color),
+      emissiveIntensity: 0.1,
+      roughness: 0.1, 
+      metalness: 0.0,
+      transmission: isActive ? 0.95 : 0.0, 
+      thickness: 0.5,
+      transparent: true, 
+      opacity: isActive ? 0.7 : 1.0,
+      depthWrite: true,
+      side: THREE.FrontSide
+    });
+
+    const jointIndices = [];
+
+    // 1. Identify all joints (corners and terminals) and draw spheres & necks
     for (let i = 0; i < path.cells.length; i++) {
-        const c = path.cells[i];
         path.meshesByCell[i] = [];
-        const cellPos = this.grid.getCellPosition(c.f, c.u, c.v).add(this.grid.getFaceNormal(c.f).multiplyScalar(0.12));
-        const mat = new THREE.MeshStandardMaterial({ 
-          color: path.color, roughness: 0.1, metalness: 0.4, 
-          emissive: new THREE.Color(path.color), emissiveIntensity: 0.2 
-        });
+        const c = path.cells[i];
+        const cellPos = this.grid.getCellPosition(c.f, c.u, c.v).add(this.grid.getFaceNormal(c.f).multiplyScalar(0.121));
 
-        const sphereGeo = new THREE.SphereGeometry(this.grid.cellSize * 0.24, 16, 16);
-        const joint = new THREE.Mesh(sphereGeo, mat);
-        joint.position.copy(cellPos);
-        joint.renderOrder = 35; // TOP LAYER for pipes
-        joint.material.depthWrite = true;
-        this.grid.group.add(joint);
-        path.meshes.push(joint);
-        path.meshesByCell[i].push(joint);
-        if (i > 0) {
-            const pC = path.cells[i-1];
-            const pP = this.grid.getCellPosition(pC.f, pC.u, pC.v).add(this.grid.getFaceNormal(pC.f).multiplyScalar(0.12));
-            const lN = this.grid.getFaceNormal(pC.f);
-            let isN = (pC.f === c.f) ? (Math.abs(pC.u - c.u) + Math.abs(pC.v - c.v) === 1) : this.grid.getNeighborCells(pC).some(n => n.f === c.f && n.u === c.u && n.v === c.v);
-            if (isN) {
-                if (this.grid.getFaceNormal(c.f).equals(lN)) {
-                    const geo = new THREE.CylinderGeometry(this.grid.cellSize * 0.24, this.grid.cellSize * 0.24, cellPos.distanceTo(pP), 16);
-                    geo.rotateX(Math.PI / 2);
-                    const seg = new THREE.Mesh(geo, mat);
-                    seg.position.copy(new THREE.Vector3().addVectors(cellPos, pP).multiplyScalar(0.5));
-                    seg.lookAt(cellPos);
-                    seg.renderOrder = 35; // TOP LAYER
-                    this.grid.group.add(seg);
-                    path.meshes.push(seg);
-                    path.meshesByCell[i].push(seg);
-                } else {
-                    const eP = pP.clone().sub(lN.clone().multiplyScalar(0.12));
-                    if (this.grid.getFaceNormal(c.f).x !== 0) eP.x = cellPos.x;
-                    if (this.grid.getFaceNormal(c.f).y !== 0) eP.y = cellPos.y;
-                    if (this.grid.getFaceNormal(c.f).z !== 0) eP.z = cellPos.z;
-                    const geo1 = new THREE.CylinderGeometry(this.grid.cellSize * 0.24, this.grid.cellSize * 0.24, pP.distanceTo(eP.clone().add(lN.clone().multiplyScalar(0.12))), 16);
-                    geo1.rotateX(Math.PI / 2);
-                    const seg1 = new THREE.Mesh(geo1, mat);
-                    seg1.position.copy(new THREE.Vector3().addVectors(pP, eP.clone().add(lN.clone().multiplyScalar(0.12))).multiplyScalar(0.5));
-                    seg1.lookAt(eP.clone().add(lN.clone().multiplyScalar(0.12)));
-                    seg1.renderOrder = 35;
-                    this.grid.group.add(seg1);
-                    path.meshes.push(seg1);
-                    path.meshesByCell[i].push(seg1);
-                    const oEP2 = eP.clone().add(this.grid.getFaceNormal(c.f).clone().multiplyScalar(0.12));
-                    const geo2 = new THREE.CylinderGeometry(this.grid.cellSize * 0.24, this.grid.cellSize * 0.24, oEP2.distanceTo(cellPos), 16);
-                    geo2.rotateX(Math.PI / 2);
-                    const seg2 = new THREE.Mesh(geo2, mat);
-                    seg2.position.copy(new THREE.Vector3().addVectors(oEP2, cellPos).multiplyScalar(0.5));
-                    seg2.lookAt(cellPos);
-                    seg2.renderOrder = 35;
-                    this.grid.group.add(seg2);
-                    path.meshes.push(seg2);
-                    path.meshesByCell[i].push(seg2);
-                    const jO = new THREE.Vector3().addVectors(this.grid.getFaceNormal(c.f), lN).normalize().multiplyScalar(0.12);
-                    const eJ = new THREE.Mesh(new THREE.SphereGeometry(this.grid.cellSize * 0.24, 16, 16), mat);
-                    eJ.position.copy(eP).add(jO);
-                    eJ.renderOrder = 35;
-                    this.grid.group.add(eJ);
-                    path.meshes.push(eJ);
-                    path.meshesByCell[i].push(eJ);
-                }
-            }
+        // Joint Sphere Logic
+        let needsJoint = (i === 0 || i === path.cells.length - 1);
+        if (i > 0 && i < path.cells.length - 1) {
+            const prev = path.cells[i-1];
+            const next = path.cells[i+1];
+            if (prev.f !== c.f || next.f !== c.f) needsJoint = true;
+            else if ((prev.u !== next.u) && (prev.v !== next.v)) needsJoint = true;
+        }
+
+        if (needsJoint) {
+            jointIndices.push(i);
+            const joint = new THREE.Mesh(new THREE.SphereGeometry(this.grid.cellSize * pipeR, 24, 24), mat);
+            joint.position.copy(cellPos);
+            joint.renderOrder = 100;
+            this.grid.group.add(joint);
+            path.meshes.push(joint);
+            path.meshesByCell[i].push(joint);
+        }
+
+        // Neck (Plate to Cell Center)
+        if (i === 0 || (i === path.cells.length - 1 && path.isCompleted)) {
+            const platePos = this.grid.getCellPosition(c.f, c.u, c.v);
+            const neckGeo = new THREE.CylinderGeometry(this.grid.cellSize * pipeR, this.grid.cellSize * pipeR, cellPos.distanceTo(platePos), 24);
+            neckGeo.rotateX(Math.PI / 2);
+            const neck = new THREE.Mesh(neckGeo, mat);
+            neck.position.copy(new THREE.Vector3().addVectors(cellPos, platePos).multiplyScalar(0.5));
+            neck.lookAt(cellPos);
+            neck.renderOrder = 100;
+            this.grid.group.add(neck);
+            path.meshes.push(neck);
+            path.meshesByCell[i].push(neck);
+        }
+    }
+
+    // 2. Connect the joints with single continuous cylinders
+    for (let j = 1; j < jointIndices.length; j++) {
+        const startIdx = jointIndices[j-1];
+        const endIdx = jointIndices[j];
+        
+        const pC = path.cells[startIdx];
+        const c = path.cells[endIdx];
+        
+        const pP = this.grid.getCellPosition(pC.f, pC.u, pC.v).add(this.grid.getFaceNormal(pC.f).multiplyScalar(0.121));
+        const cellPos = this.grid.getCellPosition(c.f, c.u, c.v).add(this.grid.getFaceNormal(c.f).multiplyScalar(0.121));
+
+        if (c.f === pC.f) {
+            // Straight continuous segment on the SAME face
+            const geo = new THREE.CylinderGeometry(this.grid.cellSize * pipeR, this.grid.cellSize * pipeR, cellPos.distanceTo(pP), 24);
+            geo.rotateX(Math.PI / 2);
+            const seg = new THREE.Mesh(geo, mat);
+            seg.position.copy(new THREE.Vector3().addVectors(cellPos, pP).multiplyScalar(0.5));
+            seg.lookAt(cellPos);
+            seg.renderOrder = 100;
+            this.grid.group.add(seg);
+            path.meshes.push(seg);
+            path.meshesByCell[endIdx].push(seg);
+        } else {
+            // Cross-Face Transition (Corner)
+            const n1 = this.grid.getFaceNormal(pC.f);
+            const n2 = this.grid.getFaceNormal(c.f);
+            const h = this.grid.halfExtents;
+            const eP = new THREE.Vector3();
+            const offset = 0.121;
+            if (n1.x !== 0) eP.x = (h + offset) * n1.x; else if (n2.x !== 0) eP.x = (h + offset) * n2.x; else eP.x = pP.x;
+            if (n1.y !== 0) eP.y = (h + offset) * n1.y; else if (n2.y !== 0) eP.y = (h + offset) * n2.y; else eP.y = pP.y;
+            if (n1.z !== 0) eP.z = (h + offset) * n1.z; else if (n2.z !== 0) eP.z = (h + offset) * n2.z; else eP.z = pP.z;
+
+            const seg1Geo = new THREE.CylinderGeometry(this.grid.cellSize * pipeR, this.grid.cellSize * pipeR, pP.distanceTo(eP), 24);
+            seg1Geo.rotateX(Math.PI / 2);
+            const seg1 = new THREE.Mesh(seg1Geo, mat);
+            seg1.position.copy(pP.clone().add(eP).multiplyScalar(0.5));
+            seg1.lookAt(eP);
+            seg1.renderOrder = 100;
+            this.grid.group.add(seg1);
+            path.meshes.push(seg1);
+            path.meshesByCell[endIdx].push(seg1);
+
+            const seg2Geo = new THREE.CylinderGeometry(this.grid.cellSize * pipeR, this.grid.cellSize * pipeR, cellPos.distanceTo(eP), 24);
+            seg2Geo.rotateX(Math.PI / 2);
+            const seg2 = new THREE.Mesh(seg2Geo, mat);
+            seg2.position.copy(cellPos.clone().add(eP).multiplyScalar(0.5));
+            seg2.lookAt(cellPos);
+            seg2.renderOrder = 100;
+            this.grid.group.add(seg2);
+            path.meshes.push(seg2);
+            path.meshesByCell[endIdx].push(seg2);
+
+            const eJ = new THREE.Mesh(new THREE.SphereGeometry(this.grid.cellSize * pipeR, 24, 24), mat);
+            eJ.position.copy(eP);
+            eJ.renderOrder = 100;
+            this.grid.group.add(eJ);
+            path.meshes.push(eJ);
+            path.meshesByCell[endIdx].push(eJ);
         }
     }
   }
 
   setSensitivity(val) { this.sensitivityFactor = val; }
+
+  setVictory(isWon) {
+      this.isVictorious = isWon;
+      this.victoryTime = 0;
+      if (!isWon) {
+          // Snap back to starting alignment
+          this.grid.group.quaternion.identity();
+          this.currentRotationVelocity = 0;
+          this.targetRotationVelocity = 0;
+      }
+  }
 }

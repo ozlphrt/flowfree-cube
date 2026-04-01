@@ -1,76 +1,123 @@
 import { COLORS } from './Constants.js';
 
 export class PuzzleGenerator {
-  static generate(grid, colorCount = 5, totalPairs = 12) {
-    const size = grid.size;
+  static generate(grid, level = 1) {
     const occupied = new Set();
     const resultPairs = [];
     const colors = Object.values(COLORS);
     
+    // SOVEREIGN SIMPLICITY: level = number of pairs
+    // Cap at a reasonable maximum for the 5x5 cube grid to ensure success
+    const maxPairs = 18;
+    const targetPairs = Math.min(level, maxPairs);
+
+    // Dynamic Distribution of Labels
+    const colorsToLabels = [];
+    let allocated = 0;
+    let colorIdx = 0;
+    while (allocated < targetPairs) {
+        const c = colors[colorIdx % colors.length];
+        const group = colorsToLabels.find(g => g.color === c);
+        if (group) {
+            group.labels.push(group.labels.length + 1);
+        } else {
+            colorsToLabels.push({ color: c, labels: [1] });
+        }
+        allocated++;
+        colorIdx++;
+    }
+
     let success = false;
     let globalAttempts = 0;
+    const maxAttempts = 600; // INCREASED FOR HIGH DENSITY PUZZLES
     
-    const colorsToLabels = [
-      { color: colors[0], labels: [1, 2, 3] }, // Red 1, 2, 3
-      { color: colors[1], labels: [1, 2, 3] }, // Blue 1, 2, 3
-      { color: colors[2], labels: [1, 2] },    // Green 1, 2
-      { color: colors[3], labels: [1, 2] },    // Yellow 1, 2
-      { color: colors[4], labels: [1, 2] }     // Orange 1, 2
-      // Total: 3+3+2+2+2 = 12 pairs
-    ];
-
-    while (!success && globalAttempts < 100) { 
+    while (!success && globalAttempts < maxAttempts) { 
       occupied.clear();
       resultPairs.length = 0;
       let possible = true;
+      const allTerminals = [];
+
+      // RELAXATION: Gradually lower constraints as failures increase
+      const relaxation = Math.floor(globalAttempts / 50); 
+      const minPathLen = Math.max(2, 6 - relaxation); // FASTER PROGRESSION
+      const useStrictSpacing = relaxation < 3;
 
       for (const group of colorsToLabels) {
         for (const label of group.labels) {
-          const path = this.findComplexPath(grid, occupied);
+          // Label-based path length: Higher labels get shorter "filler" lengths
+          const baseLen = (label >= 3) ? 12 : 6;
+          const targetLen = baseLen + Math.floor(Math.random() * 8);
+
+          const path = this.findComplexPath(grid, occupied, allTerminals, targetLen, minPathLen, useStrictSpacing);
           if (!path) {
             possible = false;
             break;
           }
           path.forEach(pt => occupied.add(`${pt.f},${pt.u},${pt.v}`));
+          const p1 = path[0];
+          const p2 = path[path.length - 1];
+          allTerminals.push(p1, p2);
+          
           resultPairs.push({
             color: group.color,
             label: label,
-            points: [path[0], path[path.length - 1]]
+            points: [p1, p2]
           });
         }
         if (!possible) break;
       }
 
-      if (possible && resultPairs.length === totalPairs) success = true;
+      if (possible && resultPairs.length === targetPairs) success = true;
       globalAttempts++;
     }
 
     if (!success) {
-      console.warn('Failed to generate labeled 12-pair puzzle, falling back...');
+      console.warn(`Failed to generate level ${level} after ${globalAttempts} attempts.`);
       return []; 
     }
 
     return resultPairs;
   }
 
-  static findComplexPath(grid, occupied) {
+  static findComplexPath(grid, occupied, existingTerminals, targetLen, minAllowedLen, useStrictSpacing) {
     const allCells = [];
     for (let f = 0; f < 6; f++) {
       for (let u = 0; u < grid.size; u++) {
         for (let v = 0; v < grid.size; v++) {
-          if (!occupied.has(`${f},${u},${v}`)) allCells.push({ f, u, v });
+          const key = `${f},${u},${v}`;
+          if (!occupied.has(key)) {
+            if (useStrictSpacing) {
+              const tooNear = existingTerminals.some(t => t.f === f && Math.abs(t.u - u) + Math.abs(t.v - v) <= 1);
+              if (tooNear) continue;
+            }
+            allCells.push({ f, u, v });
+          }
         }
       }
     }
 
     if (allCells.length === 0) return null;
     
-    const startCandidates = allCells.sort(() => Math.random() - 0.5).slice(0, 25);
+    // Increased seeding for more exhaustive search
+    const startCandidates = allCells.sort(() => Math.random() - 0.5).slice(0, 50);
     
     for (const start of startCandidates) {
-      const targetLen = 8 + Math.floor(Math.random() * 15);
       const path = this.backtrackPath(grid, start, targetLen, occupied, [start]);
-      if (path && path.length >= 6) return path;
+      
+      if (path && path.length >= minAllowedLen) {
+        const startPoint = path[0];
+        const endPoint = path[path.length - 1];
+        
+        // FACE DIVERSITY: End must be on a different surface than start
+        if (startPoint.f === endPoint.f) continue;
+
+        if (useStrictSpacing) {
+          const tooNear = existingTerminals.some(t => t.f === endPoint.f && Math.abs(t.u - endPoint.u) + Math.abs(t.v - endPoint.v) <= 1);
+          if (tooNear) continue;
+        }
+
+        return path;
+      }
     }
     return null;
   }
