@@ -3,86 +3,73 @@ import { COLORS } from './Constants.js';
 export class PuzzleGenerator {
   static generate(grid, level = 1) {
     const startTime = Date.now();
-    const maxPairs = 40; // High limit now that we have recursive solver and 7x7 scaling
-    const targetPairs = Math.min(level, maxPairs);
+    const totalCells = grid.size * grid.size * 6;
+    const targetDensity = (level < 35) ? 0.6 : 0.8; // Target 80% for high levels
     const colors = Object.values(COLORS);
     
     // 1. Difficulty Curve Parameters
-    const isHighDensity = (level >= 11);
-    const gridDensity = targetPairs / (grid.size * grid.size * 6);
-    
-    // Adaptive Constraints
-    const forceFaceCrossingProb = level < 11 ? 1.0 : 0.65;
-    const useStrictSpacing = level < 11;
-    const maxPathLen = level < 11 ? 25 : Math.max(6, Math.floor(150 / targetPairs * 1.5));
+    const forceFaceCrossingProb = level < 35 ? 0.3 : 0.95; // Hard-enforce corners for level 35+
+    const maxPathLen = Math.max(10, Math.floor(totalCells / 5)); // Allow winding paths
 
-    // 2. Pair Allocation
-    const pairsToSolve = [];
-    let colorIdx = 0;
-    while (pairsToSolve.length < targetPairs) {
-        const c = colors[colorIdx % colors.length];
-        const label = Math.floor(colorIdx / colors.length) + 1;
-        pairsToSolve.push({ color: c, label });
-        colorIdx++;
-    }
-
-    // 3. Recursive Solver
+    // 2. Recursive Generation State
     const occupied = new Set();
     const resultPairs = [];
     const allTerminals = [];
+    let colorIdx = 0;
 
-    const solve = (pairIdx) => {
-        if (pairIdx === targetPairs) return true;
-        if (Date.now() - startTime > 3000) return false; // Safety timeout
-
-        const pairInfo = pairsToSolve[pairIdx];
-        const candidates = this.getStartEndCandidates(grid, occupied, allTerminals, useStrictSpacing);
+    // Solver loop: Keep adding pairs until density or timeout
+    const generatePuzzle = () => {
+        let attempts = 0;
+        const maxAttempts = 100;
         
-        // Shuffle candidates for variety
-        candidates.sort(() => Math.random() - 0.5).slice(0, 30);
+        while (occupied.size < totalCells * targetDensity && attempts < maxAttempts) {
+            if (Date.now() - startTime > 2500) break; // Hard safety
+            
+            const color = colors[colorIdx % colors.length];
+            const label = Math.floor(colorIdx / colors.length) + 1;
+            
+            const candidates = this.getStartEndCandidates(grid, occupied, allTerminals, level > 35);
+            if (candidates.length === 0) { attempts++; continue; }
+            
+            // Focus on long-distance corner-crossing candidates
+            const bestCandidates = candidates.filter(can => {
+                if (level < 35) return true;
+                const isSameFace = can.start.f === can.end.f;
+                return !isSameFace || Math.random() > forceFaceCrossingProb;
+            });
+            
+            if (bestCandidates.length === 0) { attempts++; continue; }
+            const candidate = bestCandidates[Math.floor(Math.random() * bestCandidates.length)];
 
-        for (const candidate of candidates) {
-            // Respect Face Crossing Prob
-            const isSameFace = candidate.start.f === candidate.end.f;
-            if (isSameFace && Math.random() < forceFaceCrossingProb) continue;
-
-            const path = this.findPathBetween(grid, candidate.start, candidate.end, occupied, maxPathLen);
+            // Find a WINDING path
+            const path = this.findWindingPath(grid, candidate.start, candidate.end, occupied, maxPathLen);
             if (path) {
-                // Apply Path
                 path.forEach(p => occupied.add(`${p.f},${p.u},${p.v}`));
                 allTerminals.push(candidate.start, candidate.end);
-                resultPairs.push({ color: pairInfo.color, label: pairInfo.label, points: [candidate.start, candidate.end] });
-
-                // Recurse
-                if (solve(pairIdx + 1)) return true;
-
-                // Backtrack
-                resultPairs.pop();
-                allTerminals.pop(); allTerminals.pop();
-                path.forEach(p => occupied.delete(`${p.f},${p.u},${p.v}`));
+                resultPairs.push({ color, label, points: [candidate.start, candidate.end] });
+                colorIdx++;
+                attempts = 0; // Reset on success
+            } else {
+                attempts++;
             }
         }
-        return false;
     };
 
-    if (solve(0)) {
-        console.log(`Sovereign Generator: Generated Level ${level} in ${Date.now() - startTime}ms`);
-        return resultPairs;
-    }
-
-    console.warn(`Sovereign Generator: Failed Level ${level} after ${Date.now() - startTime}ms`);
-    return [];
+    generatePuzzle();
+    console.log(`Sovereign Generator v1.162: Generated Level ${level} in ${Date.now() - startTime}ms (Density: ${(occupied.size/totalCells).toFixed(2)})`);
+    return resultPairs;
   }
 
-  static getStartEndCandidates(grid, occupied, existingTerminals, strictSpacing) {
+  static getStartEndCandidates(grid, occupied, existingTerminals, highDiff) {
     const freeCells = [];
     for (let f = 0; f < 6; f++) {
       for (let u = 0; u < grid.size; u++) {
         for (let v = 0; v < grid.size; v++) {
           const key = `${f},${u},${v}`;
           if (!occupied.has(key)) {
-            if (strictSpacing) {
-              const tooNear = existingTerminals.some(t => t.f === f && Math.abs(t.u - u) + Math.abs(t.v - v) <= 1);
+            // High difficulty extra spacing
+            if (highDiff) {
+              const tooNear = existingTerminals.some(t => t.f === f && Math.abs(t.u - u) + Math.abs(t.v - v) <= 2);
               if (tooNear) continue;
             }
             freeCells.push({ f, u, v });
@@ -91,36 +78,42 @@ export class PuzzleGenerator {
       }
     }
 
+    if (freeCells.length < 2) return [];
+
     const candidates = [];
-    const count = Math.min(freeCells.length, 60);
-    const shuffled = freeCells.sort(() => Math.random() - 0.5);
+    const shuffle = freeCells.sort(() => Math.random() - 0.5);
+    const count = Math.min(shuffle.length, 30);
     
     for (let i = 0; i < count; i++) {
         for (let j = i + 1; j < count; j++) {
-            candidates.push({ start: shuffled[i], end: shuffled[j] });
+            candidates.push({ start: shuffle[i], end: shuffle[j] });
         }
     }
-    return candidates.slice(0, 100);
+    return candidates;
   }
 
-  static findPathBetween(grid, start, end, globalOccupied, maxLen) {
+  // STOCHASTIC BFS: Finds winding, obstructive paths to fill grid space
+  static findWindingPath(grid, start, end, globalOccupied, maxLen) {
     const queue = [[start]];
     const visited = new Set();
     visited.add(`${start.f},${start.u},${start.v}`);
 
-    // BFS for shortest path (Sovereign Efficiency)
     while (queue.length > 0) {
-        const path = queue.shift();
+        // Stochastic pull: instead of just shift(), occasionally pull from middle to create variability
+        const idx = (Math.random() < 0.4) ? Math.floor(Math.random() * queue.length) : 0;
+        const path = queue.splice(idx, 1)[0];
         const current = path[path.length - 1];
 
         if (current.f === end.f && current.u === end.u && current.v === end.v) {
-            if (path.length <= maxLen) return path;
-            continue;
+            return path;
         }
 
         if (path.length >= maxLen) continue;
 
         const neighbors = grid.getNeighborCells(current);
+        // Randomize neighbor exploration to prevent straight-line BFS behavior
+        neighbors.sort(() => Math.random() - 0.5);
+
         for (const n of neighbors) {
             const key = `${n.f},${n.u},${n.v}`;
             if (!visited.has(key) && !globalOccupied.has(key)) {

@@ -30,7 +30,9 @@ export class GameController {
   calculateTargetSize(level) {
     if (level < 20) return 5;
     if (level < 35) return 6;
-    return 7;
+    if (level < 60) return 7;
+    if (level < 100) return 8;
+    return 9;
   }
 
   initLevel() {
