@@ -578,6 +578,57 @@ canvas {
   transform: scale(1.1) rotate(-90deg);
 }
 
+/* Mobile Battery Optimization */
+@media (max-width: 768px) {
+  .glass, 
+  .hud-item, 
+  #settings-panel, 
+  #compass-btn, 
+  #restart-btn {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: rgba(255, 255, 255, 0.95) !important; /* Near-opaque white for light mode */
+    color: #111 !important;
+    border: 1px solid rgba(0, 0, 0, 0.15) !important;
+    opacity: 1 !important;
+  }
+  
+  /* Force full opacity for labels and values on mobile */
+  .hud-item .label,
+  .hud-item .value,
+  .hud-item .hud-label,
+  .hud-item .hud-value {
+    opacity: 1 !important;
+    color: #111 !important;
+  }
+
+  #compass-btn, #restart-btn {
+    opacity: 0.8 !important; 
+    color: #111 !important;
+    background: rgba(255, 255, 255, 0.95) !important;
+  }
+
+  body.dark-theme .glass,
+  body.dark-theme .hud-item,
+  body.dark-theme #settings-panel,
+  body.dark-theme #compass-btn,
+  body.dark-theme #restart-btn {
+    background: rgba(20, 20, 20, 0.98) !important; /* Near-opaque dark for dark mode */
+    color: #eee !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  }
+
+  body.dark-theme .hud-item .label,
+  body.dark-theme .hud-item .value,
+  body.dark-theme .hud-item .hud-label,
+  body.dark-theme .hud-item .hud-value,
+  body.dark-theme #compass-btn, 
+  body.dark-theme #restart-btn {
+    opacity: 1 !important;
+    color: #eee !important;
+  }
+}
+
 /* Utilities */
 .hidden {
   display: none !important;

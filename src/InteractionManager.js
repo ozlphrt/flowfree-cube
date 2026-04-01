@@ -84,6 +84,7 @@ export class InteractionManager {
       this.minDistance,
       this.maxDistance
     );
+    if (window.requestSovereignFrame) window.requestSovereignFrame();
   }
 
   updatePointer(event) {
@@ -109,6 +110,7 @@ export class InteractionManager {
         this.updatePointer(event);
         this.lastPointer.copy(this.pointer);
         this.dragStartPoint.set(event.clientX, event.clientY);
+        if (window.requestSovereignFrame) window.requestSovereignFrame();
         return; 
     }
 
@@ -119,6 +121,7 @@ export class InteractionManager {
     this.dragStartPoint.set(event.clientX, event.clientY);
     this.lockedLocalAxis = null;
     this.lockedDragDir = null;
+    if (window.requestSovereignFrame) window.requestSovereignFrame();
     
     this.raycaster.setFromCamera(this.pointer, this.camera);
     const cellMeshes = this.grid.cells.map(c => c.mesh);
@@ -196,6 +199,7 @@ export class InteractionManager {
             this.minDistance,
             this.maxDistance
         );
+        if (window.requestSovereignFrame) window.requestSovereignFrame();
         return; 
     }
 
@@ -303,6 +307,7 @@ export class InteractionManager {
         // Final Fix: Apply a 1.5x multiplier to vertical movement to overcome screen aspect ratio stiffness
         const delta = (this.lockedDragDir === 'x' ? deltaX : -deltaY * 1.5);
         this.targetRotationVelocity = delta * actualSpeed * this.sensitivityFactor; 
+        if (window.requestSovereignFrame) window.requestSovereignFrame();
     }
     
     this.lastPointer.copy(this.pointer);
@@ -321,6 +326,7 @@ export class InteractionManager {
     this.targetRotationVelocity = 0;
     this.lockedLocalAxis = null; 
     this.lockedDragDir = null;   
+    if (window.requestSovereignFrame) window.requestSovereignFrame();
     if (this.activePath && !this.activePath.isCompleted) {
        if (this.gameController.stubs.indexOf(this.activePath) === -1) this.gameController.addStub(this.activePath);
        this.gameController.setPlateHighlight(this.activePath.startPlate, false);
@@ -593,6 +599,7 @@ export class InteractionManager {
       this.lockedLocalAxis = null;
       this.lockedDragDir = null;
       this.isResetting = true;
+      if (window.requestSovereignFrame) window.requestSovereignFrame();
   }
 
   setVictory(isWon) {

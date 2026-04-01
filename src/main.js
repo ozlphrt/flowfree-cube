@@ -12,9 +12,12 @@ import { soundManager } from './SoundManager.js';
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xdddddd); // RESTORE LIGHT GREY
 
-const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "default" });
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+// Adaptive DPR: Cap at 1.5 for mobile (battery priority)
+const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobile ? 1.5 : 2.0));
 renderer.shadowMap.enabled = true;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 0.90; // SOVEREIGN SIGNATURE EXPOSURE
@@ -184,19 +187,52 @@ reloadBtn.onclick = async () => {
 setInterval(checkVersion, 30000);
 checkVersion();
 
-// 5. Main Loop
-function animate() {
-    requestAnimationFrame(animate);
-    interactionManager.update();
-    grid.update();
-    renderer.render(scene, camera);
+// 5. Battery Optimization Engine
+let renderRequested = true;
+let lastRequestTime = Date.now();
+const RENDER_TIMEOUT = 2000; // Keep rendering 2s after any activity for lerps and animations
+
+function requestRender() {
+    renderRequested = true;
+    lastRequestTime = Date.now();
+}
+
+// Global hook for other managers to trigger frames
+window.requestSovereignFrame = requestRender;
+
+// Visibility API
+let isVisible = true;
+document.addEventListener('visibilitychange', () => {
+    isVisible = (document.visibilityState === 'visible');
+    if (isVisible) requestRender();
+});
+
+// 6. Main Loop
+function loop() {
+    requestAnimationFrame(loop);
+    if (!isVisible) return;
+
+    // Check if we need to render
+    const now = Date.now();
+    const interactionActive = interactionManager.isDragging || 
+                              interactionManager.isResetting || 
+                              interactionManager.isVictorious || 
+                              (now - lastRequestTime < RENDER_TIMEOUT);
+
+    if (renderRequested || interactionActive) {
+        interactionManager.update();
+        grid.update(camera);
+        renderer.render(scene, camera);
+        renderRequested = false;
+    }
 }
 
 window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
+    requestRender();
 });
 
-animate();
-console.log('3D FlowFree Sovereign Restoration Complete.');
+loop();
+console.log('3D FlowFree Sovereign Restoration Complete. Battery Optimized v1.161.0');
