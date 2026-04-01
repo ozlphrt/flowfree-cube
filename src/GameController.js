@@ -19,11 +19,30 @@ export class GameController {
     const savedLevel = localStorage.getItem(SAVE_KEY);
     this.currentLevel = savedLevel ? parseInt(savedLevel, 10) : 1;
     
+    this.loader = document.getElementById('loader-overlay');
+    this.lvlDisplay = document.getElementById('level-val');
+    
     this.initLevel();
   }
 
+  calculateTargetSize(level) {
+    if (level < 20) return 5;
+    if (level < 35) return 6;
+    return 7;
+  }
+
   initLevel() {
-    // Clear old state
+    // 1. Show UI Loader
+    if (this.loader) this.loader.classList.remove('hidden');
+    if (this.lvlDisplay) this.lvlDisplay.innerText = this.currentLevel;
+
+    // 2. Handle Dynamic Scaling
+    const targetSize = this.calculateTargetSize(this.currentLevel);
+    if (this.grid.size !== targetSize) {
+        this.grid.rebuild(targetSize);
+    }
+
+    // 3. Clear old state
     this.plates.forEach(p => {
         this.grid.group.remove(p.mesh);
         if (p.labelMesh) this.grid.group.remove(p.labelMesh);
@@ -35,25 +54,22 @@ export class GameController {
     this.stubs = [];
     this.completedPaths = [];
 
-    const puzzle = PuzzleGenerator.generate(this.grid, this.currentLevel);
-    if (!puzzle || puzzle.length === 0) {
-      console.error(`Sovereign Generator: Failed to produce Level ${this.currentLevel}. Retrying...`);
-      // Fallback: Try a slightly lower level difficulty if it absolutely fails
-      const fallbackPuzzle = PuzzleGenerator.generate(this.grid, Math.max(1, this.currentLevel - 1));
-      if (fallbackPuzzle && fallbackPuzzle.length > 0) {
-        fallbackPuzzle.forEach(pair => {
-            this.addPlate(pair.points[0], pair.color, pair.label);
-            this.addPlate(pair.points[1], pair.color, pair.label);
-        });
-      }
-    } else {
-        puzzle.forEach(pair => {
-            this.addPlate(pair.points[0], pair.color, pair.label);
-            this.addPlate(pair.points[1], pair.color, pair.label);
-        });
-    }
+    // 4. Heavy Generation (Async for UI reactivity)
+    setTimeout(() => {
+        const puzzle = PuzzleGenerator.generate(this.grid, this.currentLevel);
+        
+        if (puzzle && puzzle.length > 0) {
+            puzzle.forEach(pair => {
+                this.addPlate(pair.points[0], pair.color, pair.label);
+                this.addPlate(pair.points[1], pair.color, pair.label);
+            });
+        } else {
+            console.error(`Sovereign Generator: Failed Level ${this.currentLevel}`);
+        }
 
-    if (this.onUpdate) this.onUpdate();
+        if (this.loader) this.loader.classList.add('hidden');
+        if (this.onUpdate) this.onUpdate();
+    }, 100);
   }
 
   nextLevel() {
@@ -113,6 +129,23 @@ export class GameController {
       return true;
     }
     return false;
+  }
+
+  clearPathsByColor(color, label) {
+    const toClear = [
+        ...this.stubs.filter(s => s.color === color && s.label === label),
+        ...this.completedPaths.filter(p => p.color === color && p.label === label)
+    ];
+
+    toClear.forEach(path => {
+        if (path.meshes) {
+            path.meshes.forEach(m => this.grid.group.remove(m));
+        }
+        this.stubs = this.stubs.filter(s => s !== path);
+        this.completedPaths = this.completedPaths.filter(p => p !== path);
+    });
+
+    if (toClear.length > 0 && this.onUpdate) this.onUpdate();
   }
 
   getCellOccupant(f, u, v) {

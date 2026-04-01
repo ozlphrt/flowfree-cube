@@ -60,10 +60,12 @@ export class CubeGrid {
     // 2. The 6 Faces Grids (3D PHYSICAL BARS)
     const barThickness = 0.02; // SLIGHTLY THICKER FOR STABILITY
     const barMat = new THREE.MeshBasicMaterial({ 
-      color: 0xffffff, 
+      color: 0x000000, 
       transparent: true,
-      opacity: 0.6 // SUBTLE BLENDING FOR SMOOTHER EDGES
+      opacity: 0.07 // WHISPER THIN DARKENING
     });
+
+    this.faceGrids = []; // Store for dynamic visibility
 
     faces.forEach((face, faceIndex) => {
       // a. Individual Interactive Cells
@@ -117,7 +119,22 @@ export class CubeGrid {
       faceGrid.lookAt(faceGrid.position.clone().add(face.normal));
       faceGrid.renderOrder = 10; // SELECTIVE PHYSICAL BLUR (RENDER BEFORE FROSTING)
       this.group.add(faceGrid);
+      this.faceGrids.push({ mesh: faceGrid, normal: face.normal });
     });
+  }
+
+  rebuild(newSize) {
+    this.size = newSize;
+    this.halfExtents = (this.size * this.cellSize) / 2;
+    this.cells = [];
+    this.faceGrids = [];
+    
+    // Clear existing objects from group
+    while(this.group.children.length > 0){ 
+      this.group.remove(this.group.children[0]); 
+    }
+    
+    this.initVisuals();
   }
 
   getCell(faceIndex, u, v) {
@@ -161,6 +178,7 @@ export class CubeGrid {
     });
     const plate = new THREE.Mesh(plateGeo, plateMat);
     plate.position.copy(pos).add(normal.clone().multiplyScalar(0.121));
+    plate.up.copy(this.getFaceUp(faceIndex));
     plate.lookAt(plate.position.clone().add(normal));
     plate.renderOrder = 20;
     this.group.add(plate);
@@ -177,6 +195,7 @@ export class CubeGrid {
     });
     const labelMesh = new THREE.Mesh(plateGeo, labelMat);
     labelMesh.position.copy(plate.position).add(normal.clone().multiplyScalar(0.002));
+    labelMesh.up.copy(plate.up);
     labelMesh.lookAt(labelMesh.position.clone().add(normal));
     labelMesh.renderOrder = 21; // Draw on top
     this.group.add(labelMesh);
@@ -184,7 +203,40 @@ export class CubeGrid {
     return { plate, label: labelMesh };
   }
 
-  update() {}
+  getFaceUp(faceIndex) {
+    const ups = [
+      new THREE.Vector3(0, 1, 0), // Front (Z+)
+      new THREE.Vector3(0, 1, 0), // Back (Z-)
+      new THREE.Vector3(0, 1, 0), // Right (X+)
+      new THREE.Vector3(0, 1, 0), // Left (X-)
+      new THREE.Vector3(0, 0, -1), // Top (Y+) - Up points to back
+      new THREE.Vector3(0, 0, 1)   // Bottom (Y-) - Up points to front
+    ];
+    return ups[faceIndex].clone();
+  }
+
+  update(camera) {
+    if (!camera) return;
+    
+    // Calculate viewer direction in grid space
+    const worldCamDir = new THREE.Vector3();
+    camera.getWorldDirection(worldCamDir);
+    
+    // Alternatively, just use camera's world position relative to cube
+    const camPos = camera.position.clone();
+    
+    this.faceGrids.forEach(fg => {
+        // Dot product of face normal and camera direction (transformed to world space)
+        // Since the cube rotates, the normals rotate too.
+        const worldNormal = fg.normal.clone().applyQuaternion(this.group.quaternion);
+        
+        // Face is visible if it points towards the camera
+        const toCam = camPos.clone().normalize();
+        const dot = worldNormal.dot(toCam);
+        
+        fg.mesh.visible = (dot > 0.1); // Only show near faces
+    });
+  }
 
   getNeighborCells(cell) {
     const { f, u, v } = cell;

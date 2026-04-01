@@ -136,35 +136,17 @@ export class InteractionManager {
         }, this.LONG_PRESS_DURATION);
 
         if (plate) {
-          const stubAtPlate = this.gameController.stubs.find(s => s.startPlate === plate);
-          const completedAtPlate = this.gameController.getCompletedPathByPlate(data.faceIndex, data.u, data.v);
+          // AUTO-RESET: Clear any existing stubs or completed paths of this color/label
+          this.gameController.clearPathsByColor(plate.color, plate.label);
 
-          if (completedAtPlate) {
-             this.activePath = completedAtPlate;
-             this.activeColor = plate.color;
-             this.activeLabel = plate.label;
-             this.lastCell = { f: data.faceIndex, u: data.u, v: data.v, position: cellHit.point.clone(), normal: this.grid.getFaceNormal(data.faceIndex) };
-             return; 
-          }
-
-          if (stubAtPlate) {
-             this.activeColor = plate.color;
-             this.activeLabel = plate.label;
-             this.activePath = stubAtPlate;
-             this.activePath.cells = [ { f: data.faceIndex, u: data.u, v: data.v } ]; 
-             this.redrawEntirePath(this.activePath);
-             const normal = this.grid.getFaceNormal(data.faceIndex);
-             this.lastCell = { f: data.faceIndex, u: data.u, v: data.v, position: cellHit.point.clone(), normal };
-          } else {
-            this.activeColor = plate.color;
-            this.activeLabel = plate.label;
-            const faceNormal = this.grid.getFaceNormal(data.faceIndex);
-            this.lastCell = { f: data.faceIndex, u: data.u, v: data.v, position: cellHit.point.clone(), normal: faceNormal };
-            this.activePath = {
-               color: this.activeColor, label: this.activeLabel, startPlate: plate,
-               cells: [{ f: data.faceIndex, u: data.u, v: data.v }], meshesByCell: {}, meshes: [], isCompleted: false
-            };
-          }
+          this.activeColor = plate.color;
+          this.activeLabel = plate.label;
+          const faceNormal = this.grid.getFaceNormal(data.faceIndex);
+          this.lastCell = { f: data.faceIndex, u: data.u, v: data.v, position: cellHit.point.clone(), normal: faceNormal };
+          this.activePath = {
+             color: this.activeColor, label: this.activeLabel, startPlate: plate,
+             cells: [{ f: data.faceIndex, u: data.u, v: data.v }], meshesByCell: {}, meshes: [], isCompleted: false
+          };
           this.gameController.setPlateHighlight(plate, true);
         } else if (occupant && !occupant.isCompleted) {
           // MID-PIPE EDITING ALLOWED ONLY FOR INCOMPLETE PATHS
@@ -255,7 +237,13 @@ export class InteractionManager {
                   this.activePath.cells = this.activePath.cells.slice(0, collideIdx + 1);
                 } else {
                   const occ = this.gameController.getCellOccupant(target.faceIndex, target.u, target.v);
-                  if (occ && occ !== this.activePath) return; // Prevent overwriting
+                  const targetPlate = this.gameController.getPlateAt(target.faceIndex, target.u, target.v);
+
+                  // SMART-SNAP: Allow move if it's the target plate of the SAME color, even if it has a stale stub
+                  const isTarget = targetPlate && targetPlate.color === this.activeColor && targetPlate !== this.activePath.startPlate;
+                  
+                  if (occ && occ !== this.activePath && !isTarget) return; 
+                  
                   this.activePath.cells.push({ f: target.faceIndex, u: target.u, v: target.v });
                 }
                 const head = this.activePath.cells[this.activePath.cells.length - 1];
@@ -368,6 +356,9 @@ export class InteractionManager {
     if (this.lockedLocalAxis !== null && Math.abs(this.currentRotationVelocity) > 0.0001) {
       this.grid.group.rotateOnAxis(this.lockedLocalAxis, this.currentRotationVelocity * this.axisSign);
     }
+
+    // Dynamic Visibility: Hide grid lines inside/behind
+    this.grid.update(this.camera);
   }
 
   redrawEntirePath(path) {
@@ -429,11 +420,8 @@ export class InteractionManager {
             const n1 = this.grid.getFaceNormal(prev.f);
             const n2 = this.grid.getFaceNormal(c.f);
             const h = this.grid.halfExtents;
-            const edgeP = new THREE.Vector3();
-            if (n1.x !== 0) edgeP.x = (h + surfaceOffset) * n1.x; else if (n2.x !== 0) edgeP.x = (h + surfaceOffset) * n2.x; else edgeP.x = prevPos.x;
-            if (n1.y !== 0) edgeP.y = (h + surfaceOffset) * n1.y; else if (n2.y !== 0) edgeP.y = (h + offset) || prevPos.y; // Simplified
             
-            // Re-use logic from previous turn but keep it robust
+            // Corner Wrapping Point (Robust)
             const h_off = h + surfaceOffset;
             const eP = new THREE.Vector3();
             if (n1.x !== 0) eP.x = h_off * n1.x; else if (n2.x !== 0) eP.x = h_off * n2.x; else eP.x = prevPos.x;

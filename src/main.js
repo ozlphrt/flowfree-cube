@@ -43,6 +43,7 @@ scene.add(pointLight2);
 // 3. Game Components
 const grid = new CubeGrid(scene, 5);
 const gameController = new GameController(grid);
+window.gameController = gameController;
 const interactionManager = new InteractionManager(camera, grid, renderer, gameController, scene);
 const backgroundManager = new BackgroundManager(scene);
 
