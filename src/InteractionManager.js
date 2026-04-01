@@ -45,6 +45,17 @@ export class InteractionManager {
     this.isVictorious = false;
     this.victoryTime = 0;
 
+    // Zoom state
+    this.baseCameraDistance = 11.5;
+    this.targetCameraDistance = 11.5;
+    this.currentCameraDistance = 11.5;
+    this.minDistance = 6;
+    this.maxDistance = 25;
+    
+    // Pinch state
+    this.activePointers = new Map();
+    this.initialPinchDistance = 0;
+
     this.initEvents();
   }
 
@@ -54,6 +65,20 @@ export class InteractionManager {
     window.addEventListener('pointermove', this.onPointerMove.bind(this));
     window.addEventListener('pointerup', this.onPointerUp.bind(this));
     window.addEventListener('pointercancel', this.onPointerUp.bind(this));
+    
+    // Zoom / Wheel event
+    canvas.addEventListener('wheel', this.onWheel.bind(this), { passive: false });
+  }
+
+  onWheel(event) {
+    event.preventDefault();
+    const zoomSpeed = 0.5;
+    const delta = Math.sign(event.deltaY);
+    this.targetCameraDistance = THREE.MathUtils.clamp(
+      this.targetCameraDistance + delta * zoomSpeed,
+      this.minDistance,
+      this.maxDistance
+    );
   }
 
   updatePointer(event) {
@@ -62,6 +87,18 @@ export class InteractionManager {
   }
 
   onPointerDown(event) {
+    this.activePointers.set(event.pointerId, event);
+
+    if (this.activePointers.size === 2) {
+        const points = Array.from(this.activePointers.values());
+        this.initialPinchDistance = Math.hypot(
+            points[0].clientX - points[1].clientX,
+            points[0].clientY - points[1].clientY
+        );
+        this.startPinchZoom = this.targetCameraDistance;
+        return; 
+    }
+
     if (this.isVictorious) return;
     this.isDragging = true;
     this.updatePointer(event);
@@ -148,7 +185,27 @@ export class InteractionManager {
   }
 
   onPointerMove(event) {
+    this.activePointers.set(event.pointerId, event);
+
     if (this.isVictorious) return;
+    
+    // Pinch support
+    if (this.activePointers.size === 2) {
+        const points = Array.from(this.activePointers.values());
+        const dist = Math.hypot(
+            points[0].clientX - points[1].clientX,
+            points[0].clientY - points[1].clientY
+        );
+        
+        const delta = (this.initialPinchDistance - dist) * 0.05;
+        this.targetCameraDistance = THREE.MathUtils.clamp(
+            this.startPinchZoom + delta,
+            this.minDistance,
+            this.maxDistance
+        );
+        return; 
+    }
+
     if (!this.isDragging) return;
     
     // Distance check to cancel long-press if moved too far
@@ -247,13 +304,19 @@ export class InteractionManager {
     this.lastPointer.copy(this.pointer);
   }
 
-  onPointerUp() {
+  onPointerUp(event) {
+    if (event) this.activePointers.delete(event.pointerId);
+    else this.activePointers.clear();
+    this.stopInteraction();
+  }
+
+  stopInteraction() {
     clearTimeout(this.longPressTimer);
     this.dialEl?.classList.add('hidden');
     this.isDragging = false;
     this.targetRotationVelocity = 0;
-    this.lockedLocalAxis = null; // KEY FIX: RESET AXIS LOCK
-    this.lockedDragDir = null;   // KEY FIX: RESET DRAG DIRECTION
+    this.lockedLocalAxis = null; 
+    this.lockedDragDir = null;   
     if (this.activePath && !this.activePath.isCompleted) {
        if (this.gameController.stubs.indexOf(this.activePath) === -1) this.gameController.addStub(this.activePath);
        this.gameController.setPlateHighlight(this.activePath.startPlate, false);
@@ -264,6 +327,11 @@ export class InteractionManager {
   }
 
   update() {
+    // Zoom smoothing
+    this.currentCameraDistance = THREE.MathUtils.lerp(this.currentCameraDistance, this.targetCameraDistance, 0.1);
+    const camDir = this.camera.position.clone().normalize();
+    this.camera.position.copy(camDir.multiplyScalar(this.currentCameraDistance));
+
     if (this.isVictorious) {
         // Continuous, gradually shifting rotation
         this.victoryTime += 0.016; 
@@ -309,18 +377,19 @@ export class InteractionManager {
     const pipeR = 0.25; 
 
     const isActive = (path === this.activePath && !path.isCompleted);
-    const op = isActive ? (window.activePipeOpacity || 0.65) : 1.0;
+    const op = isActive ? (window.activePipeOpacity || 0.50) : 1.0;
 
     const mat = new THREE.MeshPhysicalMaterial({ 
       color: new THREE.Color(path.color),
       emissive: new THREE.Color(path.color),
       emissiveIntensity: 0.1,
-      roughness: 0.1, 
+      roughness: window.activePipeRoughness !== undefined ? window.activePipeRoughness : 0.1, 
+      ior: window.activePipeIOR !== undefined ? window.activePipeIOR : 1.45,
       metalness: 0.0,
       transmission: isActive ? 0.95 : 0.0, 
       thickness: 0.5,
-      transparent: true, 
-      opacity: isActive ? 0.7 : 1.0,
+      transparent: isActive, // SCALE FROSTING: ONLY ACTIVE PIPES ARE TRANSPARENT
+      opacity: isActive ? (window.activePipeOpacity || 0.50) : 1.0,
       depthWrite: true,
       side: THREE.FrontSide
     });
@@ -346,7 +415,7 @@ export class InteractionManager {
             jointIndices.push(i);
             const joint = new THREE.Mesh(new THREE.SphereGeometry(this.grid.cellSize * pipeR, 24, 24), mat);
             joint.position.copy(cellPos);
-            joint.renderOrder = 100;
+            // joint.renderOrder = 100; // REMOVED: ALLOW TRANSMISSION BLUR
             this.grid.group.add(joint);
             path.meshes.push(joint);
             path.meshesByCell[i].push(joint);
@@ -360,7 +429,7 @@ export class InteractionManager {
             const neck = new THREE.Mesh(neckGeo, mat);
             neck.position.copy(new THREE.Vector3().addVectors(cellPos, platePos).multiplyScalar(0.5));
             neck.lookAt(cellPos);
-            neck.renderOrder = 100;
+            // neck.renderOrder = 100; // REMOVED: ALLOW TRANSMISSION BLUR
             this.grid.group.add(neck);
             path.meshes.push(neck);
             path.meshesByCell[i].push(neck);
@@ -385,7 +454,7 @@ export class InteractionManager {
             const seg = new THREE.Mesh(geo, mat);
             seg.position.copy(new THREE.Vector3().addVectors(cellPos, pP).multiplyScalar(0.5));
             seg.lookAt(cellPos);
-            seg.renderOrder = 100;
+            // seg.renderOrder = 100; // REMOVED: ALLOW TRANSMISSION BLUR
             this.grid.group.add(seg);
             path.meshes.push(seg);
             path.meshesByCell[endIdx].push(seg);
@@ -415,7 +484,7 @@ export class InteractionManager {
             const seg2 = new THREE.Mesh(seg2Geo, mat);
             seg2.position.copy(cellPos.clone().add(eP).multiplyScalar(0.5));
             seg2.lookAt(cellPos);
-            seg2.renderOrder = 100;
+            // seg2.renderOrder = 100; // REMOVED: ALLOW TRANSMISSION BLUR
             this.grid.group.add(seg2);
             path.meshes.push(seg2);
             path.meshesByCell[endIdx].push(seg2);
@@ -428,6 +497,20 @@ export class InteractionManager {
             path.meshesByCell[endIdx].push(eJ);
         }
     }
+  }
+
+  updatePipeMaterials(roughness, ior) {
+    const updatePath = (path) => {
+        path.meshes.forEach(mesh => {
+            if (mesh.material) {
+                if (roughness !== undefined) mesh.material.roughness = roughness;
+                if (ior !== undefined) mesh.material.ior = ior;
+            }
+        });
+    };
+    this.gameController.completedPaths.forEach(updatePath);
+    this.gameController.stubs.forEach(updatePath);
+    if (this.activePath) updatePath(this.activePath);
   }
 
   setSensitivity(val) { this.sensitivityFactor = val; }
@@ -443,3 +526,4 @@ export class InteractionManager {
       }
   }
 }
+

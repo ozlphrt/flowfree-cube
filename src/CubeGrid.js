@@ -26,7 +26,7 @@ export class CubeGrid {
       thickness: 0.2,      
       clearcoat: 1.0,      
       clearcoatRoughness: 0.02,
-      ior: 1.38,           // SOVEREIGN SIGNATURE IOR 
+      ior: 1.62,           // SOVEREIGN SIGNATURE IOR (LIGHT THEME DEFAULT)
       transparent: true,
       opacity: 1.0,        
       reflectivity: 0.5,
@@ -35,6 +35,7 @@ export class CubeGrid {
       depthWrite: false,      
     });
     this.coreMesh = new THREE.Mesh(coreGeo, coreMat);
+    this.coreMesh.renderOrder = 50; // SOVEREIGN: RENDER AFTER PIPES TO BLUR THEM
     this.group.add(this.coreMesh);
 
     // Outer Edge Highlight
@@ -118,22 +119,40 @@ export class CubeGrid {
     const pos = this.getCellPosition(faceIndex, u, v);
     const normal = this.getFaceNormal(faceIndex);
     const plateGeo = new THREE.CircleGeometry(this.cellSize * 0.35, 32);
+    
+    // 1. Base Plate - ORIGINAL COLOR RESERVED
     const plateMat = new THREE.MeshPhysicalMaterial({ 
       color: new THREE.Color(color).multiplyScalar(0.7), 
       roughness: 0.4, 
       metalness: 0.1,
       clearcoat: 0.3, 
-      emissiveIntensity: 0.0,
-      transparent: false, // SOLID
-      opacity: 1.0,       // OPAQUE FOR GLASS REFRACTION
+      transparent: false, 
+      opacity: 1.0,       
       side: THREE.DoubleSide
     });
-    const mesh = new THREE.Mesh(plateGeo, plateMat);
-    mesh.position.copy(pos).add(normal.clone().multiplyScalar(0.121));
-    mesh.renderOrder = 20;
-    mesh.lookAt(mesh.position.clone().add(normal));
-    this.group.add(mesh);
-    return mesh;
+    const plate = new THREE.Mesh(plateGeo, plateMat);
+    plate.position.copy(pos).add(normal.clone().multiplyScalar(0.121));
+    plate.lookAt(plate.position.clone().add(normal));
+    plate.renderOrder = 20;
+    this.group.add(plate);
+
+    // 2. Translucent Label - PURE WHITE OUTLINES
+    const labelMat = new THREE.MeshPhysicalMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 1.0,
+      roughness: 1.0,
+      metalness: 0.0,
+      depthWrite: false, // Prevent z-fighting
+      side: THREE.DoubleSide
+    });
+    const labelMesh = new THREE.Mesh(plateGeo, labelMat);
+    labelMesh.position.copy(plate.position).add(normal.clone().multiplyScalar(0.002));
+    labelMesh.lookAt(labelMesh.position.clone().add(normal));
+    labelMesh.renderOrder = 21; // Draw on top
+    this.group.add(labelMesh);
+
+    return { plate, label: labelMesh };
   }
 
   update() {}

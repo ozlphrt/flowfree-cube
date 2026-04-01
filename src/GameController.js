@@ -24,7 +24,10 @@ export class GameController {
 
   initLevel() {
     // Clear old state
-    this.plates.forEach(p => this.grid.group.remove(p.mesh));
+    this.plates.forEach(p => {
+        this.grid.group.remove(p.mesh);
+        if (p.labelMesh) this.grid.group.remove(p.labelMesh);
+    });
     this.stubs.forEach(s => s.meshes.forEach(m => this.grid.group.remove(m)));
     this.completedPaths.forEach(p => p.meshes.forEach(m => this.grid.group.remove(m)));
     
@@ -61,15 +64,14 @@ export class GameController {
 
   addPlate(coord, color, label) {
     const { f, u, v } = coord;
-    const mesh = this.grid.addPlate(f, u, v, color);
+    const { plate, label: labelMesh } = this.grid.addPlate(f, u, v, color);
     
+    // Apply texture to the TOP TRANSPARENT LABEL MESH
     const texture = TextureHelper.createLabeledTexture(color, label);
-    mesh.material.map = texture;
-    mesh.material.emissiveMap = texture;
-    mesh.material.emissiveIntensity = 0.5;
-    mesh.material.needsUpdate = true;
+    labelMesh.material.map = texture;
+    labelMesh.material.needsUpdate = true;
 
-    this.plates.push({ f, u, v, color, label, mesh });
+    this.plates.push({ f, u, v, color, label, mesh: plate, labelMesh });
   }
 
   getPlateAt(f, u, v) {
@@ -130,8 +132,8 @@ export class GameController {
   }
 
   setPlateHighlight(plate, highlighted) {
-    if (plate.mesh) {
-      plate.mesh.material.emissiveIntensity = highlighted ? 1.0 : 0.5;
+    if (plate.labelMesh) {
+      plate.labelMesh.material.emissiveIntensity = highlighted ? 1.0 : 0.0;
     }
   }
 }

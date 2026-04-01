@@ -1,0 +1,1 @@
+if('serviceWorker' in navigator) navigator.serviceWorker.register('/flowfree-cube/dev-sw.js?dev-sw', { scope: '/flowfree-cube/', type: 'classic' })

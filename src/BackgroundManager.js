@@ -13,7 +13,7 @@ export class BackgroundManager {
         
         this.topColor = '#dddddd';
         this.bottomColor = '#ffffff';
-        this.intensity = 1.0;
+        this.intensity = 1.5;
         
         this.update();
     }
@@ -22,6 +22,14 @@ export class BackgroundManager {
         this.topColor = top;
         this.bottomColor = bottom;
         this.update();
+    }
+
+    setTheme(mode) {
+        if (mode === 'dark') {
+            this.setColors('#050505', '#151515');
+        } else {
+            this.setColors('#dddddd', '#ffffff');
+        }
     }
 
     setIntensity(val) {

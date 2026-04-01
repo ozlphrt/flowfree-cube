@@ -16,8 +16,9 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.0; // SOVEREIGN SIGNATURE EXPOSURE
+renderer.toneMappingExposure = 0.70; // SOVEREIGN SIGNATURE EXPOSURE (LIGHT THEME DEFAULT)
 document.body.appendChild(renderer.domElement);
+scene.environmentIntensity = 0.50; // SOVEREIGN SIGNATURE ENV INTENSITY
 
 // 2. Environment (RoomEnvironment for Sovereign Reflections)
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
@@ -32,7 +33,7 @@ camera.lookAt(0, 0, 0);
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.0); // SOVEREIGN SIGNATURE AMBIENCE
 scene.add(ambientLight);
 
-const pointLight1 = new THREE.PointLight(0xffffff, 4.0); // 4.0x POINT LIGHT
+const pointLight1 = new THREE.PointLight(0xffffff, 4.5); // 4.5x POINT LIGHT (LIGHT THEME DEFAULT)
 pointLight1.position.set(20, 20, 20);
 scene.add(pointLight1);
 const pointLight2 = new THREE.PointLight(0xffffff, 1.0); // 1.0x FILL LIGHT
@@ -46,7 +47,7 @@ const interactionManager = new InteractionManager(camera, grid, renderer, gameCo
 const backgroundManager = new BackgroundManager(scene);
 
 // 5. Sovereign Debug Panel (CTRL+Shift+Alt+D)
-new DebugManager(gameController, scene, renderer, grid, interactionManager, backgroundManager);
+const debugManager = new DebugManager(gameController, scene, renderer, grid, interactionManager, backgroundManager);
 
 // 4. UI Hookups
 const victoryModal = document.getElementById('victory-modal');

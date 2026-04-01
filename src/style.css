@@ -89,7 +89,7 @@ canvas {
 }
 
 .sovereign-level-display span {
-  color: var(--success);
+  padding-left: 2px;
 }
 
 .separator {
