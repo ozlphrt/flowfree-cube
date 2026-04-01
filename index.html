@@ -6,13 +6,20 @@
     <title>3D FlowFree | Labeled Challenge</title>
     <link rel="icon" type="image/png" href="/flowfree-cube/192.png" />
     <link rel="apple-touch-icon" href="/flowfree-cube/192.png">
-    <script type="module" crossorigin src="/flowfree-cube/assets/index-fE1ulTAP.js"></script>
-    <link rel="stylesheet" crossorigin href="/flowfree-cube/assets/index-a9HM-WQ3.css">
+    <script type="module" crossorigin src="/flowfree-cube/assets/index-CXH0FM_V.js"></script>
+    <link rel="stylesheet" crossorigin href="/flowfree-cube/assets/index-DW3acnIp.css">
   <link rel="manifest" href="/flowfree-cube/manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/flowfree-cube/registerSW.js"></script></head>
   <body>
     <!-- 3D Canvas will be injected here by Three.js -->
     
     <div id="ui-layer">
+    <!-- Compass (Bottom-Left in CSS) -->
+    <div id="compass-btn" class="hud-btn pointer-events-auto" title="Reset Orientation">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M16.24 7.76l-2.12 6.36-6.36 2.12 2.12-6.36 6.36-2.12z"></path>
+            <circle cx="12" cy="12" r="10"></circle>
+        </svg>
+    </div>
       <!-- HUD Top: Progress Information -->
       <header class="hud-header">
         <div id="hud-top">
@@ -37,6 +44,14 @@
           <circle class="progress" cx="30" cy="30" r="24"></circle>
         </svg>
       </div>
+
+      <!-- Generating... Loader Overlay -->
+      <div id="loader-overlay" class="hidden">
+        <div class="loader-content glass">
+          <div class="sovereign-spinner"></div>
+          <div class="loader-text">GENERATING PUZZLE</div>
+        </div>
+      </div>
     </div>
 
     <!-- Minimalist Victory Overlay -->
@@ -48,7 +63,44 @@
         </div>
     </div>
 
-    <!-- Settings Panel (Removed) -->
+    <!-- UI: Settings System -->
+    <button id="settings-btn" aria-label="Settings">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="3"></circle>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+      </svg>
+    </button>
+
+    <div id="settings-panel" class="modal-content glass hidden">
+        <div class="settings-group toggle-group" id="audio-icon-btn" title="Toggle Audio">
+            <span class="settings-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path class="audio-on" d="M15.54 8.46a5 5 0 0 1 0 7.07"></path><path class="audio-on" d="M19.07 4.93a10 10 0 0 1 0 14.14"></path><line class="audio-off hidden" x1="1" y1="1" x2="23" y2="23"></line></svg>
+            </span>
+        </div>
+
+        <div class="settings-group toggle-group" id="theme-icon-btn" title="Toggle Theme">
+            <span class="settings-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path class="theme-moon" d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    <circle class="theme-sun hidden" cx="12" cy="12" r="5"></circle>
+                    <line class="theme-sun hidden" x1="12" y1="1" x2="12" y2="3"></line>
+                    <line class="theme-sun hidden" x1="12" y1="21" x2="12" y2="23"></line>
+                    <line class="theme-sun hidden" x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                    <line class="theme-sun hidden" x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                    <line class="theme-sun hidden" x1="1" y1="12" x2="3" y2="12"></line>
+                    <line class="theme-sun hidden" x1="21" y1="12" x2="23" y2="12"></line>
+                    <line class="theme-sun hidden" x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                    <line class="theme-sun hidden" x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                </svg>
+            </span>
+        </div>
+
+        <div class="settings-group toggle-group" id="lvl-btn" title="Jump to Level">
+            <span class="settings-icon lvl-icon">
+                LVL
+            </span>
+        </div>
+    </div>
 
   </body>
 </html>
