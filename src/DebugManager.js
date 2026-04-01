@@ -78,11 +78,11 @@ export class DebugManager {
             // Auto-adjust lights for theme
             if (currentTheme === 'light') {
                 if (ambient) ambient.intensity = 0.0;
-                this.scene.environmentIntensity = 0.5;
+                this.scene.environmentIntensity = 0.6;
                 if (p1) p1.intensity = 4.5;
                 if (p2) p2.intensity = 1.0;
-                this.renderer.toneMappingExposure = 0.7;
-                this.backgroundManager.setIntensity(1.5);
+                this.renderer.toneMappingExposure = 0.9;
+                this.backgroundManager.setIntensity(0.7);
             } else {
                 if (ambient) ambient.intensity = 0.1;
                 this.scene.environmentIntensity = 1.0;

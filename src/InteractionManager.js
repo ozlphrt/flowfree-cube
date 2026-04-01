@@ -374,35 +374,111 @@ export class InteractionManager {
     path.meshes.forEach(m => this.grid.group.remove(m));
     path.meshes = [];
     path.meshesByCell = {};
-    const pipeR = 0.25; 
 
     const isActive = (path === this.activePath && !path.isCompleted);
-    const op = isActive ? (window.activePipeOpacity || 0.50) : 1.0;
+    const pipeR = 0.25; 
 
+    // 1. RIBBON MODE (Tactical Active Draw)
+    if (isActive) {
+      const ribbonMat = new THREE.MeshBasicMaterial({ 
+        color: new THREE.Color(path.color),
+        transparent: true,
+        opacity: 0.9,
+        side: THREE.DoubleSide,
+        depthWrite: false
+      });
+      const ribbonW = this.grid.cellSize * 0.45;
+      const surfaceOffset = 0.122;
+
+      for (let i = 0; i < path.cells.length; i++) {
+        path.meshesByCell[i] = [];
+        const c = path.cells[i];
+        const cellPos = this.grid.getCellPosition(c.f, c.u, c.v).add(this.grid.getFaceNormal(c.f).multiplyScalar(surfaceOffset));
+        
+        // Center Circle (Rounded joint)
+        const jointGeo = new THREE.CircleGeometry(ribbonW / 2, 32);
+        const joint = new THREE.Mesh(jointGeo, ribbonMat);
+        joint.position.copy(cellPos);
+        joint.lookAt(cellPos.clone().add(this.grid.getFaceNormal(c.f)));
+        joint.renderOrder = 30;
+        this.grid.group.add(joint);
+        path.meshes.push(joint);
+        path.meshesByCell[i].push(joint);
+
+        // Segment to PREVIOUS cell
+        if (i > 0) {
+          const prev = path.cells[i-1];
+          const prevPos = this.grid.getCellPosition(prev.f, prev.u, prev.v).add(this.grid.getFaceNormal(prev.f).multiplyScalar(surfaceOffset));
+          
+          if (c.f === prev.f) {
+            // Straight segment on same face
+            const dist = cellPos.distanceTo(prevPos);
+            const segGeo = new THREE.PlaneGeometry(ribbonW, dist);
+            // Flip UVs for directionality: flow from start to end (or end to start?) 
+            // We want flow to follow the draw.
+            const seg = new THREE.Mesh(segGeo, ribbonMat);
+            seg.position.copy(cellPos.clone().add(prevPos).multiplyScalar(0.5));
+            seg.quaternion.setFromRotationMatrix(new THREE.Matrix4().lookAt(cellPos, prevPos, this.grid.getFaceNormal(c.f)));
+            seg.rotateX(Math.PI/2);
+            seg.renderOrder = 30;
+            this.grid.group.add(seg);
+            path.meshes.push(seg);
+            path.meshesByCell[i].push(seg);
+          } else {
+            // Cross-face Wrap (Corner)
+            const n1 = this.grid.getFaceNormal(prev.f);
+            const n2 = this.grid.getFaceNormal(c.f);
+            const h = this.grid.halfExtents;
+            const edgeP = new THREE.Vector3();
+            if (n1.x !== 0) edgeP.x = (h + surfaceOffset) * n1.x; else if (n2.x !== 0) edgeP.x = (h + surfaceOffset) * n2.x; else edgeP.x = prevPos.x;
+            if (n1.y !== 0) edgeP.y = (h + surfaceOffset) * n1.y; else if (n2.y !== 0) edgeP.y = (h + offset) || prevPos.y; // Simplified
+            
+            // Re-use logic from previous turn but keep it robust
+            const h_off = h + surfaceOffset;
+            const eP = new THREE.Vector3();
+            if (n1.x !== 0) eP.x = h_off * n1.x; else if (n2.x !== 0) eP.x = h_off * n2.x; else eP.x = prevPos.x;
+            if (n1.y !== 0) eP.y = h_off * n1.y; else if (n2.y !== 0) eP.y = h_off * n2.y; else eP.y = prevPos.y;
+            if (n1.z !== 0) eP.z = h_off * n1.z; else if (n2.z !== 0) eP.z = h_off * n2.z; else eP.z = prevPos.z;
+
+            [ {p: prevPos, n: n1, target: eP}, {p: cellPos, n: n2, target: eP} ].forEach(set => {
+              const dist = set.p.distanceTo(set.target);
+              if (dist < 0.001) return;
+              const segGeo = new THREE.PlaneGeometry(ribbonW, dist);
+              const seg = new THREE.Mesh(segGeo, ribbonMat);
+              seg.position.copy(set.p.clone().add(set.target).multiplyScalar(0.5));
+              seg.quaternion.setFromRotationMatrix(new THREE.Matrix4().lookAt(set.p, set.target, set.n));
+              seg.rotateX(Math.PI/2);
+              seg.renderOrder = 30;
+              this.grid.group.add(seg);
+              path.meshes.push(seg);
+              path.meshesByCell[i].push(seg);
+            });
+          }
+        }
+      }
+      return; 
+    }
+
+    // 2. PIPE MODE (Completed Paths)
     const mat = new THREE.MeshPhysicalMaterial({ 
       color: new THREE.Color(path.color),
       emissive: new THREE.Color(path.color),
       emissiveIntensity: 0.1,
-      roughness: window.activePipeRoughness !== undefined ? window.activePipeRoughness : 0.1, 
-      ior: window.activePipeIOR !== undefined ? window.activePipeIOR : 1.45,
+      roughness: 0.1, 
+      ior: 1.45,
       metalness: 0.0,
-      transmission: isActive ? 0.95 : 0.0, 
-      thickness: 0.5,
-      transparent: isActive, // SCALE FROSTING: ONLY ACTIVE PIPES ARE TRANSPARENT
-      opacity: isActive ? (window.activePipeOpacity || 0.50) : 1.0,
+      transmission: 0.0, 
+      transparent: false,
+      opacity: 1.0,
       depthWrite: true,
       side: THREE.FrontSide
     });
 
     const jointIndices = [];
-
-    // 1. Identify all joints (corners and terminals) and draw spheres & necks
     for (let i = 0; i < path.cells.length; i++) {
         path.meshesByCell[i] = [];
         const c = path.cells[i];
         const cellPos = this.grid.getCellPosition(c.f, c.u, c.v).add(this.grid.getFaceNormal(c.f).multiplyScalar(0.121));
-
-        // Joint Sphere Logic
         let needsJoint = (i === 0 || i === path.cells.length - 1);
         if (i > 0 && i < path.cells.length - 1) {
             const prev = path.cells[i-1];
@@ -410,18 +486,14 @@ export class InteractionManager {
             if (prev.f !== c.f || next.f !== c.f) needsJoint = true;
             else if ((prev.u !== next.u) && (prev.v !== next.v)) needsJoint = true;
         }
-
         if (needsJoint) {
             jointIndices.push(i);
             const joint = new THREE.Mesh(new THREE.SphereGeometry(this.grid.cellSize * pipeR, 24, 24), mat);
             joint.position.copy(cellPos);
-            // joint.renderOrder = 100; // REMOVED: ALLOW TRANSMISSION BLUR
             this.grid.group.add(joint);
             path.meshes.push(joint);
             path.meshesByCell[i].push(joint);
         }
-
-        // Neck (Plate to Cell Center)
         if (i === 0 || (i === path.cells.length - 1 && path.isCompleted)) {
             const platePos = this.grid.getCellPosition(c.f, c.u, c.v);
             const neckGeo = new THREE.CylinderGeometry(this.grid.cellSize * pipeR, this.grid.cellSize * pipeR, cellPos.distanceTo(platePos), 24);
@@ -429,69 +501,50 @@ export class InteractionManager {
             const neck = new THREE.Mesh(neckGeo, mat);
             neck.position.copy(new THREE.Vector3().addVectors(cellPos, platePos).multiplyScalar(0.5));
             neck.lookAt(cellPos);
-            // neck.renderOrder = 100; // REMOVED: ALLOW TRANSMISSION BLUR
             this.grid.group.add(neck);
             path.meshes.push(neck);
             path.meshesByCell[i].push(neck);
         }
     }
-
-    // 2. Connect the joints with single continuous cylinders
     for (let j = 1; j < jointIndices.length; j++) {
         const startIdx = jointIndices[j-1];
         const endIdx = jointIndices[j];
-        
-        const pC = path.cells[startIdx];
-        const c = path.cells[endIdx];
-        
+        const pC = path.cells[startIdx], c = path.cells[endIdx];
         const pP = this.grid.getCellPosition(pC.f, pC.u, pC.v).add(this.grid.getFaceNormal(pC.f).multiplyScalar(0.121));
         const cellPos = this.grid.getCellPosition(c.f, c.u, c.v).add(this.grid.getFaceNormal(c.f).multiplyScalar(0.121));
-
         if (c.f === pC.f) {
-            // Straight continuous segment on the SAME face
             const geo = new THREE.CylinderGeometry(this.grid.cellSize * pipeR, this.grid.cellSize * pipeR, cellPos.distanceTo(pP), 24);
             geo.rotateX(Math.PI / 2);
             const seg = new THREE.Mesh(geo, mat);
             seg.position.copy(new THREE.Vector3().addVectors(cellPos, pP).multiplyScalar(0.5));
             seg.lookAt(cellPos);
-            // seg.renderOrder = 100; // REMOVED: ALLOW TRANSMISSION BLUR
             this.grid.group.add(seg);
             path.meshes.push(seg);
             path.meshesByCell[endIdx].push(seg);
         } else {
-            // Cross-Face Transition (Corner)
-            const n1 = this.grid.getFaceNormal(pC.f);
-            const n2 = this.grid.getFaceNormal(c.f);
-            const h = this.grid.halfExtents;
-            const eP = new THREE.Vector3();
-            const offset = 0.121;
+            const n1 = this.grid.getFaceNormal(pC.f), n2 = this.grid.getFaceNormal(c.f);
+            const h = this.grid.halfExtents, eP = new THREE.Vector3(), offset = 0.121;
             if (n1.x !== 0) eP.x = (h + offset) * n1.x; else if (n2.x !== 0) eP.x = (h + offset) * n2.x; else eP.x = pP.x;
             if (n1.y !== 0) eP.y = (h + offset) * n1.y; else if (n2.y !== 0) eP.y = (h + offset) * n2.y; else eP.y = pP.y;
             if (n1.z !== 0) eP.z = (h + offset) * n1.z; else if (n2.z !== 0) eP.z = (h + offset) * n2.z; else eP.z = pP.z;
-
             const seg1Geo = new THREE.CylinderGeometry(this.grid.cellSize * pipeR, this.grid.cellSize * pipeR, pP.distanceTo(eP), 24);
             seg1Geo.rotateX(Math.PI / 2);
             const seg1 = new THREE.Mesh(seg1Geo, mat);
             seg1.position.copy(pP.clone().add(eP).multiplyScalar(0.5));
             seg1.lookAt(eP);
-            seg1.renderOrder = 100;
             this.grid.group.add(seg1);
             path.meshes.push(seg1);
             path.meshesByCell[endIdx].push(seg1);
-
             const seg2Geo = new THREE.CylinderGeometry(this.grid.cellSize * pipeR, this.grid.cellSize * pipeR, cellPos.distanceTo(eP), 24);
             seg2Geo.rotateX(Math.PI / 2);
             const seg2 = new THREE.Mesh(seg2Geo, mat);
             seg2.position.copy(cellPos.clone().add(eP).multiplyScalar(0.5));
             seg2.lookAt(cellPos);
-            // seg2.renderOrder = 100; // REMOVED: ALLOW TRANSMISSION BLUR
             this.grid.group.add(seg2);
             path.meshes.push(seg2);
             path.meshesByCell[endIdx].push(seg2);
-
             const eJ = new THREE.Mesh(new THREE.SphereGeometry(this.grid.cellSize * pipeR, 24, 24), mat);
             eJ.position.copy(eP);
-            eJ.renderOrder = 100;
             this.grid.group.add(eJ);
             path.meshes.push(eJ);
             path.meshesByCell[endIdx].push(eJ);

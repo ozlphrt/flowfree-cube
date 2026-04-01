@@ -40,7 +40,7 @@ export class CubeGrid {
 
     // Outer Edge Highlight
     const outerEdges = new THREE.EdgesGeometry(coreGeo);
-    const outerMat = new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 1, transparent: true, opacity: 0.25 });
+    const outerMat = new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 1, transparent: true, opacity: 0.45 });
     const outerWireframe = new THREE.LineSegments(outerEdges, outerMat);
     this.group.add(outerWireframe);
 
@@ -55,23 +55,27 @@ export class CubeGrid {
     ];
 
     const cellGeo = new THREE.PlaneGeometry(this.cellSize, this.cellSize);
-    // CRITICAL FIX: depthWrite MUST be false so invisible cells don't block visual transparency
     const cellMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0, depthWrite: false });
-    const edgeGeo = new THREE.EdgesGeometry(cellGeo);
-    const edgeMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5 }); // BROUGHT UP FOR VISIBILITY
+
+    // 2. The 6 Faces Grids (3D PHYSICAL BARS)
+    const barThickness = 0.02; // SLIGHTLY THICKER FOR STABILITY
+    const barMat = new THREE.MeshBasicMaterial({ 
+      color: 0xffffff, 
+      transparent: true,
+      opacity: 0.6 // SUBTLE BLENDING FOR SMOOTHER EDGES
+    });
 
     faces.forEach((face, faceIndex) => {
+      // a. Individual Interactive Cells
       for (let u = 0; u < this.size; u++) {
         for (let v = 0; v < this.size; v++) {
           const mesh = new THREE.Mesh(cellGeo, cellMat.clone());
           mesh.userData = { faceIndex, u, v, normal: face.normal };
           
-          const lines = new THREE.LineSegments(edgeGeo, edgeMat);
-          mesh.add(lines);
-
           const uOffset = (u - this.size / 2 + 0.5) * this.cellSize;
           const vOffset = (v - this.size / 2 + 0.5) * this.cellSize;
-          mesh.position.copy(face.normal).multiplyScalar(this.halfExtents);
+          const inwardOffset = 0.02;
+          mesh.position.copy(face.normal).multiplyScalar(this.halfExtents - inwardOffset);
           
           if (face.normal.z !== 0) {
             mesh.position.x = face.normal.z > 0 ? uOffset : -uOffset;
@@ -88,6 +92,31 @@ export class CubeGrid {
           this.cells.push({ faceIndex, u, v, mesh: mesh });
         }
       }
+
+      // b. 3D Face Grid (Physical Bars for true frosting/IOR)
+      const faceGrid = new THREE.Group();
+      const faceSize = this.size * this.cellSize;
+      
+      // Vertical Bars
+      for (let i = 0; i <= this.size; i++) {
+        const barGeo = new THREE.BoxGeometry(barThickness, faceSize, barThickness);
+        const bar = new THREE.Mesh(barGeo, barMat);
+        bar.position.x = (i - this.size / 2) * this.cellSize;
+        faceGrid.add(bar);
+      }
+      // Horizontal Bars
+      for (let i = 0; i <= this.size; i++) {
+        const barGeo = new THREE.BoxGeometry(faceSize, barThickness, barThickness);
+        const bar = new THREE.Mesh(barGeo, barMat);
+        bar.position.y = (i - this.size / 2) * this.cellSize;
+        faceGrid.add(bar);
+      }
+
+      const surfaceOffset = 0.002; // MOVE TO SURFACE (SHARP ON NEAR FACE)
+      faceGrid.position.copy(face.normal).multiplyScalar(this.halfExtents + surfaceOffset);
+      faceGrid.lookAt(faceGrid.position.clone().add(face.normal));
+      faceGrid.renderOrder = 10; // SELECTIVE PHYSICAL BLUR (RENDER BEFORE FROSTING)
+      this.group.add(faceGrid);
     });
   }
 

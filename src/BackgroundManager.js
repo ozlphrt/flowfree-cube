@@ -13,7 +13,7 @@ export class BackgroundManager {
         
         this.topColor = '#dddddd';
         this.bottomColor = '#ffffff';
-        this.intensity = 1.5;
+        this.intensity = 0.70;
         
         this.update();
     }

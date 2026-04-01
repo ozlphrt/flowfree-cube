@@ -16,9 +16,9 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 0.70; // SOVEREIGN SIGNATURE EXPOSURE (LIGHT THEME DEFAULT)
+renderer.toneMappingExposure = 0.90; // SOVEREIGN SIGNATURE EXPOSURE
 document.body.appendChild(renderer.domElement);
-scene.environmentIntensity = 0.50; // SOVEREIGN SIGNATURE ENV INTENSITY
+scene.environmentIntensity = 0.60; // SOVEREIGN SIGNATURE ENV INTENSITY
 
 // 2. Environment (RoomEnvironment for Sovereign Reflections)
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
