@@ -9,43 +9,47 @@ import { BackgroundManager } from './BackgroundManager.js';
 import { soundManager } from './SoundManager.js';
 import { registerSW } from 'virtual:pwa-register';
 
-// PWA UPDATE DETECTION - with forced immediate & periodic checks
-const updateSW = registerSW({
-  onNeedRefresh() {
-    showUpdateBanner(updateSW);
-  },
-  onOfflineReady() {
-    console.log('App ready for offline use.');
-  },
-  onRegistered(registration) {
-    if (!registration) return;
+// Keep SW registered for offline caching only
+registerSW({ onOfflineReady() {} });
 
-    // 1. Immediate check on load (bypass 24hr lazy interval)
-    registration.update();
+// VERSION CHECK - Reliable fetch-based update detection
+// This bypasses the service worker cache entirely.
+const CURRENT_VERSION = '1.176.0';
+const VERSION_URL = '/flowfree-cube/version.json';
 
-    // 2. Periodic check every 60 seconds while app is open
-    setInterval(() => registration.update(), 60 * 1000);
+async function checkForUpdate() {
+  try {
+    const res = await fetch(`${VERSION_URL}?t=${Date.now()}`, { cache: 'no-store' });
+    if (!res.ok) return;
+    const { version } = await res.json();
+    if (version && version !== CURRENT_VERSION) {
+      showUpdateModal();
+    }
+  } catch (e) {
+    // Offline — silently ignore
+  }
+}
 
-    // 3. Check when user returns to the tab after being away
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') registration.update();
-    });
-  },
-});
-
-function showUpdateBanner(updateSW) {
+function showUpdateModal() {
   const banner = document.getElementById('update-banner');
   if (!banner || !banner.classList.contains('hidden')) return;
-
-  // Show the Sovereign modal
   banner.classList.remove('hidden');
 
   const reloadBtn = document.getElementById('reload-btn');
   const dismissBtn = document.getElementById('dismiss-update-btn');
 
-  if (reloadBtn) reloadBtn.onclick = () => updateSW(true); // skip waiting → reload
+  if (reloadBtn) reloadBtn.onclick = () => window.location.reload(true);
   if (dismissBtn) dismissBtn.onclick = () => banner.classList.add('hidden');
 }
+
+// 1. Check immediately on load
+checkForUpdate();
+// 2. Periodic check every 60 seconds
+setInterval(checkForUpdate, 60 * 1000);
+// 3. Check on tab focus (user returns after being away)
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') checkForUpdate();
+});
 
 // 1. Setup Scene, Camera, Renderer
 const scene = new THREE.Scene();
@@ -390,4 +394,4 @@ window.addEventListener('resize', () => {
 
 loop();
 fitCameraToCube(); // SOVEREIGN: Mandatory initial framing call
-console.log('3D FlowFree Sovereign Restoration Complete. Battery Optimized v1.175.0');
+console.log('3D FlowFree Sovereign Restoration Complete. Battery Optimized v1.176.0');
