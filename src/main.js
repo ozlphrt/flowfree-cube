@@ -9,13 +9,27 @@ import { BackgroundManager } from './BackgroundManager.js';
 import { soundManager } from './SoundManager.js';
 import { registerSW } from 'virtual:pwa-register';
 
-// PWA UPDATE DETECTION
+// PWA UPDATE DETECTION - with forced immediate & periodic checks
 const updateSW = registerSW({
   onNeedRefresh() {
     showUpdateBanner(updateSW);
   },
   onOfflineReady() {
     console.log('App ready for offline use.');
+  },
+  onRegistered(registration) {
+    if (!registration) return;
+
+    // 1. Immediate check on load (bypass 24hr lazy interval)
+    registration.update();
+
+    // 2. Periodic check every 60 seconds while app is open
+    setInterval(() => registration.update(), 60 * 1000);
+
+    // 3. Check when user returns to the tab after being away
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') registration.update();
+    });
   },
 });
 
@@ -424,4 +438,4 @@ window.addEventListener('resize', () => {
 
 loop();
 fitCameraToCube(); // SOVEREIGN: Mandatory initial framing call
-console.log('3D FlowFree Sovereign Restoration Complete. Battery Optimized v1.173.0');
+console.log('3D FlowFree Sovereign Restoration Complete. Battery Optimized v1.174.0');
