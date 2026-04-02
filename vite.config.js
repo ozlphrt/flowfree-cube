@@ -5,7 +5,7 @@ export default defineConfig({
   base: '/flowfree-cube/',
   plugins: [
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
       includeAssets: ['favicon.svg', 'icons.svg', '192.png', '512.png'],
       manifest: {
         name: '3D FlowFree Cube',

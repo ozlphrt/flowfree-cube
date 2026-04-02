@@ -7,6 +7,79 @@ import { SettingsPanel } from './SettingsPanel.js';
 import { DebugManager } from './DebugManager.js';
 import { BackgroundManager } from './BackgroundManager.js';
 import { soundManager } from './SoundManager.js';
+import { registerSW } from 'virtual:pwa-register';
+
+// PWA UPDATE DETECTION
+const updateSW = registerSW({
+  onNeedRefresh() {
+    showUpdateBanner(updateSW);
+  },
+  onOfflineReady() {
+    console.log('App ready for offline use.');
+  },
+});
+
+function showUpdateBanner(updateSW) {
+  // Avoid showing twice
+  if (document.getElementById('pwa-update-banner')) return;
+
+  const banner = document.createElement('div');
+  banner.id = 'pwa-update-banner';
+  banner.innerHTML = `
+    <span>✨ New version available!</span>
+    <button id="pwa-reload-btn">Reload</button>
+    <button id="pwa-dismiss-btn">✕</button>
+  `;
+  Object.assign(banner.style, {
+    position: 'fixed',
+    bottom: '24px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    background: 'rgba(20, 20, 35, 0.85)',
+    backdropFilter: 'blur(16px)',
+    WebkitBackdropFilter: 'blur(16px)',
+    color: '#fff',
+    padding: '12px 20px',
+    borderRadius: '16px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    zIndex: '9999',
+    fontSize: '14px',
+    fontFamily: 'Inter, sans-serif',
+    boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+    border: '1px solid rgba(255,255,255,0.15)',
+    animation: 'slideUp 0.3s ease-out',
+  });
+
+  document.body.appendChild(banner);
+
+  // Inject keyframe if not there
+  if (!document.getElementById('pwa-banner-style')) {
+    const style = document.createElement('style');
+    style.id = 'pwa-banner-style';
+    style.textContent = `
+      @keyframes slideUp {
+        from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+        to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+      }
+      #pwa-update-banner button {
+        border: none; cursor: pointer; border-radius: 8px;
+        font-weight: 600; font-size: 13px; padding: 6px 14px;
+      }
+      #pwa-reload-btn  { background: #6c63ff; color: #fff; }
+      #pwa-dismiss-btn { background: transparent; color: rgba(255,255,255,0.5); padding: 6px 8px; }
+    `;
+    document.head.appendChild(style);
+  }
+
+  document.getElementById('pwa-reload-btn').onclick = () => {
+    updateSW(true); // Skip waiting → reload
+  };
+  document.getElementById('pwa-dismiss-btn').onclick = () => {
+    banner.remove();
+  };
+}
 
 // 1. Setup Scene, Camera, Renderer
 const scene = new THREE.Scene();
