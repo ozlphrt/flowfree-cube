@@ -47,7 +47,9 @@ export class SoundManager {
 
   resume() {
     if (this.ctx && this.ctx.state === 'suspended') {
-      this.ctx.resume();
+      this.ctx.resume().catch(() => {
+        // Silently fail if not allowed yet
+      });
     }
   }
 

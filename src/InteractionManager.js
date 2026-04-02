@@ -179,7 +179,7 @@ export class InteractionManager {
           this.gameController.removeCompletedPath(occupant);
           const cellIdx = occupant.cells.findIndex(c => c.f === data.faceIndex && c.u === data.u && c.v === data.v);
           this.activePath.cells = this.activePath.cells.slice(0, cellIdx + 1);
-          this.redrawEntirePath(this.activePath);
+          this.redrawEntirePath(this.activePath, true); // FORCE ON EDIT
           const normal = this.grid.getFaceNormal(data.faceIndex);
           this.lastCell = { f: data.faceIndex, u: data.u, v: data.v, position: cellHit.point.clone(), normal };
           this.gameController.setPlateHighlight(occupant.startPlate, true);
@@ -285,7 +285,7 @@ export class InteractionManager {
                     plateHit !== this.activePath.startPlate) {
                   this.activePath.isCompleted = true;
                   this.gameController.addCompletedPath(this.activePath);
-                  this.redrawEntirePath(this.activePath);
+                  this.redrawEntirePath(this.activePath, true); // FORCE ON COMPLETION
                   soundManager.playLock();
                   this.onPointerUp();
                   return;
@@ -427,7 +427,11 @@ export class InteractionManager {
     this.grid.update(this.camera);
   }
 
-  redrawEntirePath(path) {
+  redrawEntirePath(path, force = false) {
+    // SOVEREIGN PERFORMANCE: Only redraw if length changed or forced (completion)
+    if (!force && path._lastDrawnLength === path.cells.length) return;
+    path._lastDrawnLength = path.cells.length;
+
     path.meshes.forEach(m => this.grid.group.remove(m));
     path.meshes = [];
     path.meshesByCell = {};

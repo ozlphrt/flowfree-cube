@@ -11,10 +11,10 @@ export class CubeGrid {
 
     this.cells = [];
     
-    // Persistent Visual State
-    // Persistent Visual State
-    this.roughness = 0.20; // SOVEREIGN: STABLE FROSTING
+    // Visual State
+    this.roughness = 0.20; 
     this.ior = 1.62;
+    this.labelMeshes = []; // Restored for Compass Alignment
     
     this.initVisuals();
     this.scene.add(this.group);
@@ -216,6 +216,7 @@ export class CubeGrid {
     plate.add(labelMesh);
 
     this.group.add(plate);
+    this.labelMeshes.push(labelMesh); // RESTORE TRACKING
     return { plate, label: labelMesh };
   }
 
@@ -233,24 +234,43 @@ export class CubeGrid {
 
   update(camera) {
     if (!camera) return;
-    
-    // Calculate viewer direction in grid space
-    const worldCamDir = new THREE.Vector3();
-    camera.getWorldDirection(worldCamDir);
-    
-    // Alternatively, just use camera's world position relative to cube
-    const camPos = camera.position.clone();
-    
-    this.faceGrids.forEach(fg => {
-        // Dot product of face normal and camera direction (transformed to world space)
-        // Since the cube rotates, the normals rotate too.
-        const worldNormal = fg.normal.clone().applyQuaternion(this.group.quaternion);
+    const cameraPos = camera.position;
+    const worldUp = new THREE.Vector3(0, 1, 0);
+
+    // 1. DYNAMIC FACE VISIBILITY (CULLING)
+    this.faceGrids.forEach((fg, i) => {
+        const facePos = this.getFaceNormal(i).multiplyScalar(this.size/2).applyQuaternion(this.group.quaternion);
+        const dot = cameraPos.clone().sub(facePos).normalize().dot(this.getFaceNormal(i).applyQuaternion(this.group.quaternion));
+        fg.mesh.visible = (dot > 0.1); 
+    });
+
+    // 2. SOVEREIGN COMPASS LABELS (GREEN-AXIS CONSTRAINED) - RESTORED
+    this.labelMeshes.forEach(label => {
+        if (!label.parent) return; 
         
-        // Face is visible if it points towards the camera
-        const toCam = camPos.clone().normalize();
-        const dot = worldNormal.dot(toCam);
+        // 1. Get the world Normal vector (Green Axis)
+        const worldNormal = new THREE.Vector3(0, 1, 0)
+            .applyQuaternion(label.parent.quaternion)
+            .applyQuaternion(this.group.quaternion);
+            
+        // 2. Project world UP onto the face plane
+        const projectedUp = worldUp.clone().projectOnPlane(worldNormal).normalize();
         
-        fg.mesh.visible = (dot > 0.1); // Only show near faces
+        // 3. Skip stability-risky angles (top/bottom)
+        if (Math.abs(worldNormal.y) < 0.95 && projectedUp.length() > 0.1) {
+            // Get label's current world orientation 
+            const labelWorldQuat = label.getWorldQuaternion(new THREE.Quaternion());
+            const invLabelWorldQuat = labelWorldQuat.clone().invert();
+            
+            // Project world UP into label local space
+            const localUpAtTarget = projectedUp.clone().applyQuaternion(invLabelWorldQuat);
+            
+            // 4. Calculate the angle required to point local UP (Y) to world UP
+            const angleDelta = Math.atan2(localUpAtTarget.x, localUpAtTarget.y);
+            
+            // 5. SOVEREIGN SETTLE: Damped compass drift (0.05 for stability)
+            label.rotation.z -= angleDelta * 0.05; 
+        }
     });
   }
 

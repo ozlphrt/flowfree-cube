@@ -21,9 +21,8 @@ const renderer = new THREE.WebGLRenderer({
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setClearColor(0x000000, 0); // Start as transparent
 
-// Adaptive DPR: Cap at 1.5 for mobile (battery priority)
-const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobile ? 1.5 : 2.0));
+// Adaptive DPR: Cap at 1.5 for performance (Sovereign Optimal)
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
 renderer.shadowMap.enabled = true;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 0.90; // SOVEREIGN SIGNATURE EXPOSURE
@@ -228,7 +227,7 @@ window.checkVersion = checkVersion;
 window.showVersionModal = () => {
     const modal = document.getElementById('version-modal');
     const data = window.appVersion || {
-  "version": "1.164.1",
+  "version": "1.169.0",
   "commit": "8f2a91b",
   "buildDate": "2026-04-02",
   "env": "production"
@@ -240,38 +239,53 @@ window.showVersionModal = () => {
     modal.classList.remove('hidden');
 };
 
-document.getElementById('v-close-btn').onclick = () => document.getElementById('version-modal').classList.add('hidden');
-document.getElementById('v-copy-btn').onclick = () => {
-    const data = window.appVersion || {};
-    const text = `Sovereign Cube\nVersion: ${data.version}\nCommit: ${data.commit}\nDate: ${data.buildDate}`;
-    navigator.clipboard.writeText(text);
-    const btn = document.getElementById('v-copy-btn');
-    const prev = btn.innerText;
-    btn.innerText = "COPIED!";
-    setTimeout(() => btn.innerText = prev, 2000);
-};
+// Modal Initialization
+function initModals() {
+    const vClose = document.getElementById('v-close-btn');
+    if (vClose) vClose.onclick = () => document.getElementById('version-modal').classList.add('hidden');
+    
+    const vCopy = document.getElementById('v-copy-btn');
+    if (vCopy) vCopy.onclick = () => {
+        const data = window.appVersion || { version: '1.169.0', commit: '8f2a91b', buildDate: '2026-04-02' };
+        const text = `Sovereign Cube\nVersion: ${data.version}\nCommit: ${data.commit}\nDate: ${data.buildDate}`;
+        navigator.clipboard.writeText(text);
+        const btn = document.getElementById('v-copy-btn');
+        if (btn) {
+            const prev = btn.innerText;
+            btn.innerText = "COPIED!";
+            setTimeout(() => btn.innerText = prev, 2000);
+        }
+    };
+
+    const lCancel = document.getElementById('level-cancel-btn');
+    if (lCancel) lCancel.onclick = () => document.getElementById('level-modal').classList.add('hidden');
+    
+    const lJump = document.getElementById('level-jump-btn');
+    if (lJump) lJump.onclick = () => {
+        const input = document.getElementById('level-input');
+        const lvl = parseInt(input.value, 10);
+        if (!isNaN(lvl) && lvl > 0) {
+            gameController.currentLevel = lvl;
+            gameController.initLevel();
+            document.getElementById('level-modal').classList.add('hidden');
+            if (window.interactionManager) window.interactionManager.resetOrientation();
+        }
+    };
+}
 
 // Level Modal Logic
 window.showLevelModal = () => {
     const modal = document.getElementById('level-modal');
     const input = document.getElementById('level-input');
-    input.value = gameController.currentLevel;
-    modal.classList.remove('hidden');
-    input.focus();
-    input.select();
-};
-
-document.getElementById('level-cancel-btn').onclick = () => document.getElementById('level-modal').classList.add('hidden');
-document.getElementById('level-jump-btn').onclick = () => {
-    const input = document.getElementById('level-input');
-    const lvl = parseInt(input.value, 10);
-    if (!isNaN(lvl) && lvl > 0) {
-        gameController.currentLevel = lvl;
-        gameController.initLevel();
-        document.getElementById('level-modal').classList.add('hidden');
-        if (window.interactionManager) window.interactionManager.resetOrientation();
+    if (modal && input) {
+        input.value = gameController.currentLevel;
+        modal.classList.remove('hidden');
+        input.focus();
+        input.select();
     }
 };
+
+initModals(); // SOVEREIGN UI INIT
 
 reloadBtn.onclick = async () => {
     if ('serviceWorker' in navigator) {
@@ -337,4 +351,4 @@ window.addEventListener('resize', () => {
 
 loop();
 fitCameraToCube(); // SOVEREIGN: Mandatory initial framing call
-console.log('3D FlowFree Sovereign Restoration Complete. Battery Optimized v1.164.1');
+console.log('3D FlowFree Sovereign Restoration Complete. Battery Optimized v1.169.0');
