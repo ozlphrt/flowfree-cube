@@ -510,6 +510,18 @@ export class InteractionManager {
             this.grid.group.add(seg);
             path.meshes.push(seg);
             path.meshesByCell[i].push(seg);
+
+            // SOVEREIGN SEGMENT LABEL (Printed on the straight ribbon)
+            const labelGeo = new THREE.CircleGeometry(ribbonW * 0.45, 32);
+            const label = new THREE.Mesh(labelGeo, labelMat);
+            label.position.copy(seg.position).add(this.grid.getFaceNormal(c.f).multiplyScalar(0.001));
+            label.quaternion.copy(joint.quaternion); 
+            label.position.add(this.grid.getFaceNormal(c.f).multiplyScalar(0.001));
+            label.renderOrder = 75;
+            this.grid.group.add(label);
+            path.meshes.push(label); // Track for mesh removal
+            path.ribbonLabels.push(label);
+            this.grid.labelMeshes.push(label); // Track for alignment
           } else {
             const n1 = this.grid.getFaceNormal(prev.f), n2 = this.grid.getFaceNormal(c.f);
             const h = this.grid.halfExtents, h_off = h + surfaceOffset;
@@ -530,6 +542,17 @@ export class InteractionManager {
               this.grid.group.add(seg);
               path.meshes.push(seg);
               path.meshesByCell[i].push(seg);
+
+              // SOVEREIGN WRAP LABEL (Printed on the corner-wrap segments)
+              const labelGeo = new THREE.CircleGeometry(ribbonW * 0.45, 32);
+              const label = new THREE.Mesh(labelGeo, labelMat);
+              label.position.copy(seg.position).add(set.n.clone().multiplyScalar(0.001));
+              label.lookAt(label.position.clone().add(set.n)); 
+              label.renderOrder = 75;
+              this.grid.group.add(label);
+              path.meshes.push(label);
+              path.ribbonLabels.push(label);
+              this.grid.labelMeshes.push(label);
             });
           }
         }
