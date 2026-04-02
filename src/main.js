@@ -320,19 +320,7 @@ window.showLevelModal = () => {
 
 initModals(); // SOVEREIGN UI INIT
 
-reloadBtn.onclick = async () => {
-    if ('serviceWorker' in navigator) {
-        const registrations = await navigator.serviceWorker.getRegistrations();
-        for (const registration of registrations) {
-            await registration.unregister();
-        }
-    }
-    localStorage.removeItem('flow_build_id');
-    window.location.reload();
-};
 
-setInterval(checkVersion, 30000);
-checkVersion();
 
 // 5. Battery Optimization Engine
 let renderRequested = true;
