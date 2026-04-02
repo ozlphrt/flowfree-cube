@@ -445,9 +445,9 @@ export class InteractionManager {
     }
 
     const isActive = (path === this.activePath && !path.isCompleted);
-    const pipeR = 0.20; // SOVEREIGN REFINEMENT
+    const pipeR = 0.18; // SOVEREIGN REFINEMENT: SLEEKER PIPES
     const surfaceOffset = 0.01;
-    const ribbonW = this.grid.cellSize * 0.35;
+    const ribbonW = this.grid.cellSize * 0.32; // MATCHING SLEEKER LOOK
 
     // 2. RIBBON MODE (Tactical Active Draw)
     if (isActive) {
