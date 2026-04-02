@@ -5,14 +5,24 @@
   --glass-border: rgba(0, 0, 0, 0.1);
   --accent: #007aff;
   --success: #34c759;
+  --bg-grid: rgba(0, 0, 0, 0.02); /* GRID COLOR FOR LIGHT THEME */
   font-family: 'Outfit', 'Inter', system-ui, -apple-system, sans-serif;
 }
 
 body.dark-theme {
   --primary-bg: #050505;
   --text-main: #eee;
-  --glass-bg: rgba(255, 255, 255, 0.2); /* Boosted for better HUD visibility */
+  --glass-bg: rgba(255, 255, 255, 0.2); 
   --glass-border: rgba(255, 255, 255, 0.25);
+  background: none !important;
+}
+
+body.dark-theme #background-grid {
+  background-color: #050505;
+  background-image: 
+    linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px),
+    radial-gradient(circle at center, #1a1a1a 0%, #050505 100%);
 }
 
 /* Enhanced visibility for Dark Theme UI nodes */
@@ -30,7 +40,7 @@ body.dark-theme .glass {
 }
 
 body, html {
-  background-color: var(--primary-bg);
+  background: none !important; /* Ensure no background blocks our grid div */
   color: var(--text-main);
   touch-action: none;
   -webkit-touch-callout: none;
@@ -41,6 +51,17 @@ body, html {
   overflow: hidden;
 }
 
+/* Square Background Grid - THE ULTIMATE VISIBILITY LAYER */
+#background-grid {
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  z-index: -2; /* Deepest layer */
+  background-color: #dddddd;
+  background-image: 
+    linear-gradient(rgba(0,0,0,0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,0,0,0.08) 1px, transparent 1px),
+}
+
 canvas {
   position: absolute;
   top: 0;
@@ -48,6 +69,7 @@ canvas {
   width: 100%;
   height: 100%;
   z-index: 0;
+  background: transparent !important;
 }
 
 #ui-layer {
@@ -263,7 +285,7 @@ canvas {
   display: flex;
   justify-content: center;
   align-items: flex-end;
-  padding-bottom: 50px;
+  padding-bottom: 120px; /* LIFTED HIGHER TO STAY BETWEEN CUBE AND BUTTONS */
   z-index: 2000;
   pointer-events: none;
   background: transparent;
@@ -319,9 +341,16 @@ canvas {
   animation: victory-text-pulse 2s infinite ease-in-out;
 }
 
+/* FIX: Light theme text visibility on mobile */
+@media (max-width: 768px) {
+  body:not(.dark-theme) .modal-content h2 {
+    color: #000 !important;
+  }
+}
+
 #next-level-btn {
-  background: var(--success);
-  color: #000;
+  background: var(--success) !important; /* FORCE GREEN COLOR */
+  color: #000 !important; /* FORCE DARK TEXT FOR MAXIMUM CONTRAST */
   border: none;
   border-radius: 999px;
   padding: 10px 32px;

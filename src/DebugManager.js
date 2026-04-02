@@ -103,14 +103,14 @@ export class DebugManager {
             { id: 'p1', label: 'Point 1', min: 0, max: 20, step: 0.5, val: p1?.intensity || 0, cb: (v) => { if (p1) p1.intensity = v; } },
             { id: 'p2', label: 'Point 2', min: 0, max: 10, step: 0.5, val: p2?.intensity || 0, cb: (v) => { if (p2) p2.intensity = v; } },
             { id: 'exposure', label: 'Exposure', min: 0.1, max: 3, step: 0.1, val: this.renderer.toneMappingExposure, cb: (v) => { this.renderer.toneMappingExposure = v; } },
-            { id: 'roughness', label: 'Roughness', min: 0, max: 1, step: 0.05, val: this.cubeGrid.coreMesh.material.roughness, cb: (v) => { 
+            { id: 'roughness', label: 'Roughness', min: 0, max: 1, step: 0.05, val: this.cubeGrid.roughness, cb: (v) => { 
+                this.cubeGrid.roughness = v;
                 this.cubeGrid.coreMesh.material.roughness = v; 
-                window.activePipeRoughness = v;
                 this.interactionManager.updatePipeMaterials(v, undefined);
             } },
-            { id: 'ior', label: 'IOR', min: 1, max: 2, step: 0.01, val: this.cubeGrid.coreMesh.material.ior, cb: (v) => { 
+            { id: 'ior', label: 'IOR', min: 1, max: 2, step: 0.01, val: this.cubeGrid.ior, cb: (v) => { 
+                this.cubeGrid.ior = v;
                 this.cubeGrid.coreMesh.material.ior = v; 
-                window.activePipeIOR = v;
                 this.interactionManager.updatePipeMaterials(undefined, v);
             } },
             { id: 'opacity', label: 'Pipe Opacity', min: 0.1, max: 1, step: 0.05, val: window.activePipeOpacity || 0.50, cb: (v) => { 
@@ -139,13 +139,13 @@ export class DebugManager {
             
             const valDisplay = document.createElement('span');
             valDisplay.className = 'debug-val';
-            valDisplay.innerText = c.val.toFixed(2);
+            valDisplay.innerText = (c.val || 0).toFixed(2);
 
             this.controlMap[c.id] = { slider, valDisplay };
 
             slider.addEventListener('input', () => {
                 const v = parseFloat(slider.value);
-                valDisplay.innerText = v.toFixed(2);
+                valDisplay.innerText = (v || 0).toFixed(2);
                 c.cb(v);
             });
 

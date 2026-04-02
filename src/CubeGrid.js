@@ -10,6 +10,11 @@ export class CubeGrid {
     this.halfExtents = (this.size * this.cellSize) / 2;
 
     this.cells = [];
+    
+    // Persistent Visual State
+    this.roughness = 0.3;
+    this.ior = 1.62;
+    
     this.initVisuals();
     this.scene.add(this.group);
   }
@@ -22,12 +27,12 @@ export class CubeGrid {
     this.coreMat = new THREE.MeshPhysicalMaterial({ 
       color: 0xffffff,    
       metalness: 0.05,      
-      roughness: 0.3,      // SOVEREIGN SIGNATURE FROSTING (LIGHT THEME)
+      roughness: this.roughness,      // PERSISTENT FROSTING
       transmission: 1.0,   
       thickness: 0.2,      
       clearcoat: 1.0,      
       clearcoatRoughness: 0.02,
-      ior: 1.62,           // SOVEREIGN SIGNATURE IOR (LIGHT THEME)
+      ior: this.ior,                  // PERSISTENT IOR
       transparent: true,
       opacity: 1.0,        
       reflectivity: 0.5,
@@ -189,10 +194,9 @@ export class CubeGrid {
     const outlineGeo = new THREE.EdgesGeometry(plateGeo);
     const outlineMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6 });
     const outline = new THREE.LineSegments(outlineGeo, outlineMat);
-    outline.position.copy(plate.position).add(normal.clone().multiplyScalar(0.001));
-    outline.lookAt(outline.position.clone().add(normal));
+    outline.position.set(0, 0, 0.001); // Relative to plate
     outline.renderOrder = 22;
-    this.group.add(outline);
+    plate.add(outline);
 
     // 3. Translucent Label - PURE WHITE OUTLINES (Smaller for better margins)
     const labelGeo = new THREE.CircleGeometry(this.cellSize * 0.28, 32);
@@ -206,12 +210,11 @@ export class CubeGrid {
       side: THREE.DoubleSide
     });
     const labelMesh = new THREE.Mesh(labelGeo, labelMat);
-    labelMesh.position.copy(plate.position).add(normal.clone().multiplyScalar(0.002));
-    labelMesh.up.copy(plate.up);
-    labelMesh.lookAt(labelMesh.position.clone().add(normal));
+    labelMesh.position.set(0, 0, 0.002); // Relative to plate
     labelMesh.renderOrder = 21; // Draw on top
-    this.group.add(labelMesh);
+    plate.add(labelMesh);
 
+    this.group.add(plate);
     return { plate, label: labelMesh };
   }
 

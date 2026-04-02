@@ -3,54 +3,100 @@ import * as THREE from 'three';
 export class BackgroundManager {
     constructor(scene) {
         this.scene = scene;
+        this.intensity = 1.0;
         this.canvas = document.createElement('canvas');
-        this.canvas.width = 256; // Low res is fine for gradients
-        this.canvas.height = 256;
-        this.ctx = this.canvas.getContext('2d');
+        this.context = this.canvas.getContext('2d');
+        
+        // Base sizes for high resolution
+        this.canvas.width = 1024;
+        this.canvas.height = 1024;
         
         this.texture = new THREE.CanvasTexture(this.canvas);
-        this.texture.colorSpace = THREE.SRGBColorSpace;
         
-        this.topColor = '#dddddd';
-        this.bottomColor = '#ffffff';
-        this.intensity = 0.70;
+        // Grid properties (Restored for 3D)
+        this.gridColor = 'rgba(0,0,0,0.25)'; // Boosted for 3D visibility
+        this.topColor = '#f0f0f0';
+        this.bottomColor = '#cccccc';
         
-        this.update();
+        this.init();
+        this.scene.background = this.texture;
+        
+        window.addEventListener('resize', () => {
+            this.draw();
+        });
+    }
+
+    init() {
+        this.draw();
+    }
+
+    draw() {
+        const ctx = this.context;
+        // Ensure canvas matches window aspect for perfect squares
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        this.canvas.width = w;
+        this.canvas.height = h;
+
+        // 1. Radial Gradient Background (Full Screen)
+        const grad = ctx.createRadialGradient(w/2, h/2, 0, w/2, h/2, Math.max(w, h));
+        grad.addColorStop(0, this.topColor);
+        grad.addColorStop(1, this.bottomColor);
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, w, h);
+
+        // 2. High-Precision Square Grid (Looping across screen)
+        const gridSize = 12.5; 
+        ctx.strokeStyle = this.gridColor;
+        ctx.lineWidth = 1.0;
+        ctx.beginPath();
+        
+        // Vertical lines
+        for (let x = gridSize; x < w - 1; x += gridSize) {
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, h);
+        }
+        // Horizontal lines
+        for (let y = gridSize; y < h - 1; y += gridSize) {
+            ctx.moveTo(0, y);
+            ctx.lineTo(w, y);
+        }
+        ctx.stroke();
+
+        this.texture.needsUpdate = true;
+    }
+
+    updateAspect() {
+        // Redundant with new draw logic
     }
 
     setColors(top, bottom) {
-        this.topColor = top;
-        this.bottomColor = bottom;
-        this.update();
+        if (top) this.topColor = top;
+        if (bottom) this.bottomColor = bottom;
+        this.draw();
     }
 
     setTheme(mode) {
         if (mode === 'dark') {
-            this.setColors('#050505', '#151515');
+            this.gridColor = 'rgba(255,255,255,0.08)'; // Slightly more subtle for desaturated BG
+            this.topColor = '#1e1e22';    // Desaturated Slate Top
+            this.bottomColor = '#0d0d0f'; // Neutral Obsidian Bottom
+            document.body.classList.add('dark-theme');
         } else {
-            this.setColors('#dddddd', '#ffffff');
+            this.gridColor = 'rgba(0,0,0,0.25)';
+            this.topColor = '#f0f0f0';
+            this.bottomColor = '#cccccc';
+            document.body.classList.remove('dark-theme');
         }
+        this.draw();
     }
 
     setIntensity(val) {
         this.intensity = val;
-        if (this.scene) {
-            this.scene.backgroundIntensity = val;
-        }
+        if (this.scene) this.scene.backgroundIntensity = val;
     }
 
     update() {
-        const grd = this.ctx.createLinearGradient(0, 0, 0, 256);
-        grd.addColorStop(0, this.topColor);
-        grd.addColorStop(1, this.bottomColor);
-        
-        this.ctx.fillStyle = grd;
-        this.ctx.fillRect(0, 0, 256, 256);
-        
-        this.texture.needsUpdate = true;
-        if (this.scene) {
-            this.scene.background = this.texture;
-            this.scene.backgroundIntensity = this.intensity;
-        }
+        // Managed by texture wrapping/repeating
     }
 }

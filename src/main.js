@@ -10,10 +10,16 @@ import { soundManager } from './SoundManager.js';
 
 // 1. Setup Scene, Camera, Renderer
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xdddddd); // RESTORE LIGHT GREY
+scene.background = new THREE.Color(0xdddddd); // Initial Light Theme BG
+// Background is now handled by CSS to ensure square gridlines
 
-const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "default" });
+const renderer = new THREE.WebGLRenderer({ 
+    antialias: true, 
+    powerPreference: "default",
+    alpha: false 
+});
 renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setClearColor(0x000000, 0); // Start as transparent
 
 // Adaptive DPR: Cap at 1.5 for mobile (battery priority)
 const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -68,7 +74,7 @@ function applySettings(settings) {
     
     // 3. Theme
     if (settings.darkMode) {
-        scene.background = new THREE.Color(0x050505);
+        backgroundManager.setTheme('dark');
         renderer.toneMappingExposure = 0.7; // NEW DARK DEFAULT
         scene.environmentIntensity = 0.6;   // NEW DARK DEFAULT
         ambientLight.intensity = 0.8;       // NEW DARK DEFAULT
@@ -80,7 +86,6 @@ function applySettings(settings) {
         // Lights & Effects
         pointLight1.intensity = 1.0;
         pointLight2.intensity = 0.5;
-        document.body.classList.add('dark-theme');
         
         // Grid visibility
         if (grid.barMat) {
@@ -88,7 +93,7 @@ function applySettings(settings) {
             grid.barMat.opacity = 0.1; 
         }
     } else {
-        scene.background = new THREE.Color(0xdddddd);
+        backgroundManager.setTheme('light');
         renderer.toneMappingExposure = 0.9; // LIGHT DEFAULT
         scene.environmentIntensity = 0.6;   // LIGHT DEFAULT
         ambientLight.intensity = 0.0;       // LIGHT DEFAULT
@@ -100,7 +105,6 @@ function applySettings(settings) {
         // Lights & Effects
         pointLight1.intensity = 4.5;
         pointLight2.intensity = 1.0;
-        document.body.classList.remove('dark-theme');
 
         // Grid visibility
         if (grid.barMat) {

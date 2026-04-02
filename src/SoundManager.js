@@ -15,6 +15,23 @@ export class SoundManager {
     }
   }
 
+  // Best Practice: Modern browsers block audio until user interaction
+  setupUnlock() {
+    const unlock = () => {
+      this.init();
+      this.resume();
+      if (this.ctx) {
+        window.removeEventListener('pointerdown', unlock);
+        window.removeEventListener('touchstart', unlock);
+        window.removeEventListener('keydown', unlock);
+        console.log('Audio Context Unlocked');
+      }
+    };
+    window.addEventListener('pointerdown', unlock);
+    window.addEventListener('touchstart', unlock);
+    window.addEventListener('keydown', unlock);
+  }
+
   init() {
     if (this.isInitialized) return;
     try {
@@ -230,3 +247,4 @@ export class SoundManager {
 }
 
 export const soundManager = new SoundManager();
+soundManager.setupUnlock();

@@ -257,8 +257,11 @@ export class InteractionManager {
                   const occ = this.gameController.getCellOccupant(target.faceIndex, target.u, target.v);
                   const targetPlate = this.gameController.getPlateAt(target.faceIndex, target.u, target.v);
 
-                  // SMART-SNAP: Allow move if it's the target plate of the SAME color, even if it has a stale stub
-                  const isTarget = targetPlate && targetPlate.color === this.activeColor && targetPlate !== this.activePath.startPlate;
+                  // SMART-SNAP: Allow move if it's the target plate of the SAME color AND label, even if it has a stale stub
+                  const isTarget = targetPlate && 
+                                  targetPlate.color === this.activeColor && 
+                                  targetPlate.label === this.activeLabel && 
+                                  targetPlate !== this.activePath.startPlate;
                   
                   if (occ && occ !== this.activePath && !isTarget) return; 
                   
@@ -270,7 +273,10 @@ export class InteractionManager {
                 this.lastCell = { ...head, position: this.grid.getCellPosition(head.f, head.u, head.v).add(normal.clone().multiplyScalar(0.01)), normal };
                 
                 const plateHit = this.gameController.getPlateAt(head.f, head.u, head.v);
-                if (plateHit && plateHit.color === this.activeColor && plateHit !== this.activePath.startPlate) {
+                if (plateHit && 
+                    plateHit.color === this.activeColor && 
+                    plateHit.label === this.activeLabel && 
+                    plateHit !== this.activePath.startPlate) {
                   this.activePath.isCompleted = true;
                   this.gameController.addCompletedPath(this.activePath);
                   this.redrawEntirePath(this.activePath);
@@ -362,7 +368,7 @@ export class InteractionManager {
         const pulse = (Math.sin(this.victoryTime * 3.0) * 0.5 + 0.5) * 0.4;
         this.gameController.completedPaths.forEach(path => {
             path.meshes.forEach(m => {
-                if (m.material) m.material.emissiveIntensity = pulse;
+                if (m.material) m.material.emissiveIntensity = pulse * 0.25; // Subtler victory glow
             });
         });
     }
@@ -484,9 +490,9 @@ export class InteractionManager {
     const mat = new THREE.MeshPhysicalMaterial({ 
       color: new THREE.Color(path.color),
       emissive: new THREE.Color(path.color),
-      emissiveIntensity: 0.1,
-      roughness: 0.1, 
-      ior: 1.45,
+      emissiveIntensity: 0.01,
+      roughness: this.grid.roughness, 
+      ior: this.grid.ior,
       metalness: 0.0,
       transmission: 0.0, 
       transparent: false,
