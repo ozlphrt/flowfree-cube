@@ -424,4 +424,4 @@ window.addEventListener('resize', () => {
 
 loop();
 fitCameraToCube(); // SOVEREIGN: Mandatory initial framing call
-console.log('3D FlowFree Sovereign Restoration Complete. Battery Optimized v1.172.0');
+console.log('3D FlowFree Sovereign Restoration Complete. Battery Optimized v1.173.0');

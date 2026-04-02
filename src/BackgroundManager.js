@@ -15,8 +15,8 @@ export class BackgroundManager {
         
         // Grid properties (Restored for 3D)
         this.gridColor = 'rgba(0,0,0,0.25)'; // Boosted for 3D visibility
-        this.topColor = '#f0f0f0';
-        this.bottomColor = '#cccccc';
+        this.topColor = '#d8d8d8';
+        this.bottomColor = '#b0b0b0';
         
         this.init();
         this.scene.background = this.texture;
@@ -84,8 +84,8 @@ export class BackgroundManager {
             document.body.classList.add('dark-theme');
         } else {
             this.gridColor = 'rgba(0,0,0,0.25)';
-            this.topColor = '#f0f0f0';
-            this.bottomColor = '#cccccc';
+            this.topColor = '#d8d8d8';
+            this.bottomColor = '#b0b0b0';
             document.body.classList.remove('dark-theme');
         }
         this.draw();

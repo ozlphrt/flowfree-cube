@@ -65,11 +65,11 @@ export class CubeGrid {
     const cellMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0, depthWrite: false });
 
     // 2. The 6 Faces Grids (3D PHYSICAL BARS)
-    const barThickness = 0.02; // SLIGHTLY THICKER FOR STABILITY
+    const barThickness = 0.04; // THICKER GRID LINES
     this.barMat = new THREE.MeshBasicMaterial({ 
       color: 0x000000, 
       transparent: true,
-      opacity: 0.07 // WHISPER THIN DARKENING (LIGHT THEME)
+      opacity: 0.15 // MORE VISIBLE GRID
     });
 
     this.faceGrids = []; // Store for dynamic visibility
