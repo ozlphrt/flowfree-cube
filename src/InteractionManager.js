@@ -439,7 +439,6 @@ export class InteractionManager {
     path.meshesByCell = {};
 
     if (path.ribbonLabels) {
-        this.grid.removeLabels(path.ribbonLabels);
         path.ribbonLabels = [];
     } else {
         path.ribbonLabels = [];
@@ -492,7 +491,6 @@ export class InteractionManager {
         label.renderOrder = 75; // ENSURE ON TOP OF RIBBON
         joint.add(label);
         path.ribbonLabels.push(label);
-        this.grid.labelMeshes.push(label); // Register for compass alignment
 
         // Segment to PREVIOUS cell
         if (i > 0) {
@@ -521,7 +519,6 @@ export class InteractionManager {
             this.grid.group.add(label);
             path.meshes.push(label); // Track for mesh removal
             path.ribbonLabels.push(label);
-            this.grid.labelMeshes.push(label); // Track for alignment
           } else {
             const n1 = this.grid.getFaceNormal(prev.f), n2 = this.grid.getFaceNormal(c.f);
             const h = this.grid.halfExtents, h_off = h + surfaceOffset;
@@ -552,7 +549,6 @@ export class InteractionManager {
               this.grid.group.add(label);
               path.meshes.push(label);
               path.ribbonLabels.push(label);
-              this.grid.labelMeshes.push(label);
             });
           }
         }
