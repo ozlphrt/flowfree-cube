@@ -12,7 +12,8 @@ export class CubeGrid {
     this.cells = [];
     
     // Persistent Visual State
-    this.roughness = 0.15; // SOVEREIGN: SHARP FROSTING
+    // Persistent Visual State
+    this.roughness = 0.20; // SOVEREIGN: STABLE FROSTING
     this.ior = 1.62;
     
     this.initVisuals();
@@ -28,12 +29,14 @@ export class CubeGrid {
       color: 0xffffff,    
       metalness: 0.05,      
       roughness: this.roughness,      
-      transmission: 1.0,   
-      thickness: 0.0,      // SOVEREIGN: THIN SHELL (NO HAZE)
+      transmission: 0.95,  // SOVEREIGN: STABLE HYBRID 
+      thickness: 0.05,     // MICRO-VOLUME (STABLE FROST)
       clearcoat: 1.0,      
       clearcoatRoughness: 0.02,
       ior: this.ior,                  
       reflectivity: 0.5,
+      transparent: true,   // FOR STABLE SORTING
+      opacity: 1.0, 
       attenuationColor: new THREE.Color(0xffffff), 
       attenuationDistance: 10.0, 
       depthWrite: false,      

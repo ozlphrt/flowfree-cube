@@ -403,8 +403,8 @@ export class InteractionManager {
             // Select random axis
             const axes = [new THREE.Vector3(1,0,0), new THREE.Vector3(0,1,0), new THREE.Vector3(0,0,1)];
             this.victoryAxis = axes[Math.floor(Math.random() * axes.length)];
-            // Apply speed nudge (Slightly lighter pulses)
-            this.targetRotationVelocity += (0.02 + Math.random() * 0.03); 
+            // Apply speed nudge (Whisper light pulses)
+            this.targetRotationVelocity += (0.005 + Math.random() * 0.01); 
             // Randomly vary the interval for a more "organic" feel
             this.nudgeInterval = 1000 + Math.random() * 2000;
         }
@@ -611,7 +611,7 @@ export class InteractionManager {
   setVictory(bool) {
     this.isVictorious = bool;
     if (bool) {
-        this.targetRotationVelocity = 0.04; // Lighter initial kick
+        this.targetRotationVelocity = 0.02; // Whisper initial kick
         this.lastNudgeTime = Date.now();
         this.victoryAxis = new THREE.Vector3(Math.random(), Math.random(), Math.random()).normalize();
     } else {

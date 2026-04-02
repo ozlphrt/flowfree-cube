@@ -228,7 +228,7 @@ window.checkVersion = checkVersion;
 window.showVersionModal = () => {
     const modal = document.getElementById('version-modal');
     const data = window.appVersion || {
-  "version": "1.164.0",
+  "version": "1.164.1",
   "commit": "8f2a91b",
   "buildDate": "2026-04-02",
   "env": "production"
@@ -337,4 +337,4 @@ window.addEventListener('resize', () => {
 
 loop();
 fitCameraToCube(); // SOVEREIGN: Mandatory initial framing call
-console.log('3D FlowFree Sovereign Restoration Complete. Battery Optimized v1.164.0');
+console.log('3D FlowFree Sovereign Restoration Complete. Battery Optimized v1.164.1');
