@@ -14,7 +14,7 @@ registerSW({ onOfflineReady() {} });
 
 // VERSION CHECK - Reliable fetch-based update detection
 // This bypasses the service worker cache entirely.
-const CURRENT_VERSION = '1.177.0';
+const CURRENT_VERSION = '1.178.0';
 const VERSION_URL = '/flowfree-cube/version.json';
 
 async function checkForUpdate() {
@@ -95,11 +95,12 @@ function fitCameraToCube(size) {
     const cubeWorldSize = size * 1.0; 
     const boundingRadius = cubeWorldSize * 0.75; 
     
-    // 2. Padding (10% Breathing Room)
-    const viewRadius = boundingRadius * 1.10;
+    // 2. Padding — extra breathing room on desktop
+    const isDesktop = window.innerWidth > 768;
+    const paddingMultiplier = isDesktop ? 1.75 : 1.10;
+    const viewRadius = boundingRadius * paddingMultiplier;
     
     // 3. Calculate distance for horizontal & vertical fitting
-    // We calculate horizontal FOV from vertical FOV
     const hFov = 2 * Math.atan(Math.tan(vFov / 2) * aspect);
     
     const distVertical = viewRadius / Math.tan(vFov / 2);
@@ -110,13 +111,12 @@ function fitCameraToCube(size) {
     
     // 4. Update InteractionManager zoom state to prevent overrides
     try {
-        // Use window check to avoid TDZ (Temporal Dead Zone) ReferenceError
         if (window.interactionManager) {
             window.interactionManager.targetCameraDistance = distance;
             window.interactionManager.currentCameraDistance = distance; 
         }
     } catch (e) {
-        // Still initializing... framing will be fixed by the final call at script end
+        // Still initializing...
     }
     
     const currentDir = camera.position.clone().normalize();
@@ -372,4 +372,4 @@ window.addEventListener('resize', () => {
 
 loop();
 fitCameraToCube(); // SOVEREIGN: Mandatory initial framing call
-console.log('3D FlowFree Sovereign Restoration Complete. Battery Optimized v1.177.0');
+console.log('3D FlowFree Sovereign Restoration Complete. Battery Optimized v1.178.0');
