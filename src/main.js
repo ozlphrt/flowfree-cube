@@ -14,11 +14,17 @@ registerSW({ onOfflineReady() {} });
 
 // VERSION CHECK - Reliable fetch-based update detection
 // This bypasses the service worker cache entirely.
-const CURRENT_VERSION = '1.185.1';
+const CURRENT_VERSION = '1.185.2';
 const VERSION_URL = '/flowfree-cube/version.json';
 
 async function checkForUpdate() {
   try {
+    // 1. Grace Period: If we just reloaded to update, don't nag again for 5 mins
+    const lastReload = localStorage.getItem('lastUpdateReload');
+    if (lastReload && (Date.now() - parseInt(lastReload) < 5 * 60 * 1000)) {
+        return; 
+    }
+
     const res = await fetch(`${VERSION_URL}?t=${Date.now()}`, { cache: 'no-store' });
     if (!res.ok) return;
     const { version } = await res.json();
@@ -43,11 +49,12 @@ function showUpdateModal() {
   const dismissBtn = document.getElementById('dismiss-update-btn');
 
   if (reloadBtn) reloadBtn.onclick = () => {
-    // NUCLEAR OPTION: Unregister Service Worker + Force Bypass Cache
+    // Definitive Update: Mark the action and purge the cache
+    localStorage.setItem('lastUpdateReload', Date.now().toString());
+
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(registrations => {
             for (let reg of registrations) reg.unregister();
-            // Force hard reload with timestamp to break browser-native caching
             window.location.href = window.location.origin + window.location.pathname + '?v=' + Date.now();
         });
     } else {
@@ -391,4 +398,4 @@ window.addEventListener('resize', () => {
 
 loop();
 fitCameraToCube(); // SOVEREIGN: Mandatory initial framing call
-console.log('3D FlowFree Sovereign Restoration Complete. Battery Optimized v1.185.1');
+console.log('3D FlowFree Sovereign Restoration Complete. Battery Optimized v1.185.2');
