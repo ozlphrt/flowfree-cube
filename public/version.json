@@ -1,3 +1,6 @@
 {
-  "version": "1.163.0"
+  "version": "1.163.0",
+  "commit": "8f2a91b",
+  "buildDate": "2026-04-02",
+  "env": "production"
 }

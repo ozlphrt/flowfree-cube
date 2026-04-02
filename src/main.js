@@ -39,6 +39,50 @@ const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerH
 camera.position.set(7, 6, 7);
 camera.lookAt(0, 0, 0);
 
+/**
+ * SOVEREIGN DYNAMIC FRAMING: Perfectly fits the cube to the viewport.
+ * Leaves minimal padding regardless of grid size (2x2 to 9x9).
+ */
+function fitCameraToCube(size) {
+    if (!size) size = grid.size;
+    
+    const vFov = (camera.fov * Math.PI) / 180;
+    const aspect = camera.aspect;
+    
+    // 1. Calculate Bounding Radius (Comfortable fit)
+    const cubeWorldSize = size * 1.0; 
+    const boundingRadius = cubeWorldSize * 0.75; 
+    
+    // 2. Padding (10% Breathing Room)
+    const viewRadius = boundingRadius * 1.10;
+    
+    // 3. Calculate distance for horizontal & vertical fitting
+    // We calculate horizontal FOV from vertical FOV
+    const hFov = 2 * Math.atan(Math.tan(vFov / 2) * aspect);
+    
+    const distVertical = viewRadius / Math.tan(vFov / 2);
+    const distHorizontal = viewRadius / Math.tan(hFov / 2);
+    
+    // We choose the maximum of the two to ensure it fits both ways
+    const distance = Math.max(distVertical, distHorizontal);
+    
+    // 4. Update InteractionManager zoom state to prevent overrides
+    try {
+        // Use window check to avoid TDZ (Temporal Dead Zone) ReferenceError
+        if (window.interactionManager) {
+            window.interactionManager.targetCameraDistance = distance;
+            window.interactionManager.currentCameraDistance = distance; 
+        }
+    } catch (e) {
+        // Still initializing... framing will be fixed by the final call at script end
+    }
+    
+    const currentDir = camera.position.clone().normalize();
+    camera.position.copy(currentDir).multiplyScalar(distance);
+    camera.updateProjectionMatrix();
+}
+window.fitCameraToCube = fitCameraToCube;
+
 // Lights
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.0); // SOVEREIGN SIGNATURE AMBIENCE
 scene.add(ambientLight);
@@ -55,6 +99,7 @@ const grid = new CubeGrid(scene, 5);
 const gameController = new GameController(grid);
 window.gameController = gameController;
 const interactionManager = new InteractionManager(camera, grid, renderer, gameController, scene);
+window.interactionManager = interactionManager;
 const backgroundManager = new BackgroundManager(scene);
 
 // 5. Sovereign Debug Panel (CTRL+Shift+Alt+D)
@@ -160,22 +205,73 @@ const updateBanner = document.getElementById('update-banner');
 const reloadBtn = document.getElementById('reload-btn');
 let updateDetected = false;
 
-async function checkVersion() {
-    if (updateDetected) return;
+async function checkVersion(forced = false) {
+    if (updateDetected && !forced) return;
     try {
         const response = await fetch('/flowfree-cube/version.json?t=' + Date.now());
         const data = await response.json();
+        window.appVersion = data; // Store for modal
         if (data.version) {
             const lastVersion = localStorage.getItem('flow_build_id');
             if (lastVersion && lastVersion !== data.version) {
                 updateDetected = true;
-                updateBanner.classList.remove('hidden');
+                if (updateBanner) updateBanner.classList.remove('hidden');
             } else {
                 localStorage.setItem('flow_build_id', data.version);
             }
         }
     } catch (e) {}
 }
+window.checkVersion = checkVersion;
+
+// Version Modal Logic
+window.showVersionModal = () => {
+    const modal = document.getElementById('version-modal');
+    const data = window.appVersion || {
+  "version": "1.164.0",
+  "commit": "8f2a91b",
+  "buildDate": "2026-04-02",
+  "env": "production"
+};
+    document.getElementById('v-num').innerText = data.version;
+    document.getElementById('v-commit').innerText = data.commit;
+    document.getElementById('v-date').innerText = data.buildDate;
+    
+    modal.classList.remove('hidden');
+};
+
+document.getElementById('v-close-btn').onclick = () => document.getElementById('version-modal').classList.add('hidden');
+document.getElementById('v-copy-btn').onclick = () => {
+    const data = window.appVersion || {};
+    const text = `Sovereign Cube\nVersion: ${data.version}\nCommit: ${data.commit}\nDate: ${data.buildDate}`;
+    navigator.clipboard.writeText(text);
+    const btn = document.getElementById('v-copy-btn');
+    const prev = btn.innerText;
+    btn.innerText = "COPIED!";
+    setTimeout(() => btn.innerText = prev, 2000);
+};
+
+// Level Modal Logic
+window.showLevelModal = () => {
+    const modal = document.getElementById('level-modal');
+    const input = document.getElementById('level-input');
+    input.value = gameController.currentLevel;
+    modal.classList.remove('hidden');
+    input.focus();
+    input.select();
+};
+
+document.getElementById('level-cancel-btn').onclick = () => document.getElementById('level-modal').classList.add('hidden');
+document.getElementById('level-jump-btn').onclick = () => {
+    const input = document.getElementById('level-input');
+    const lvl = parseInt(input.value, 10);
+    if (!isNaN(lvl) && lvl > 0) {
+        gameController.currentLevel = lvl;
+        gameController.initLevel();
+        document.getElementById('level-modal').classList.add('hidden');
+        if (window.interactionManager) window.interactionManager.resetOrientation();
+    }
+};
 
 reloadBtn.onclick = async () => {
     if ('serviceWorker' in navigator) {
@@ -235,8 +331,10 @@ window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
+    fitCameraToCube(); // Re-frame on resize
     requestRender();
 });
 
 loop();
-console.log('3D FlowFree Sovereign Restoration Complete. Battery Optimized v1.161.0');
+fitCameraToCube(); // SOVEREIGN: Mandatory initial framing call
+console.log('3D FlowFree Sovereign Restoration Complete. Battery Optimized v1.164.0');

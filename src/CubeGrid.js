@@ -12,7 +12,7 @@ export class CubeGrid {
     this.cells = [];
     
     // Persistent Visual State
-    this.roughness = 0.3;
+    this.roughness = 0.15; // SOVEREIGN: SHARP FROSTING
     this.ior = 1.62;
     
     this.initVisuals();
@@ -27,21 +27,19 @@ export class CubeGrid {
     this.coreMat = new THREE.MeshPhysicalMaterial({ 
       color: 0xffffff,    
       metalness: 0.05,      
-      roughness: this.roughness,      // PERSISTENT FROSTING
+      roughness: this.roughness,      
       transmission: 1.0,   
-      thickness: 0.2,      
+      thickness: 0.0,      // SOVEREIGN: THIN SHELL (NO HAZE)
       clearcoat: 1.0,      
       clearcoatRoughness: 0.02,
-      ior: this.ior,                  // PERSISTENT IOR
-      transparent: true,
-      opacity: 1.0,        
+      ior: this.ior,                  
       reflectivity: 0.5,
       attenuationColor: new THREE.Color(0xffffff), 
       attenuationDistance: 10.0, 
       depthWrite: false,      
     });
     this.coreMesh = new THREE.Mesh(coreGeo, this.coreMat);
-    this.coreMesh.renderOrder = 50; // SOVEREIGN: RENDER AFTER PIPES TO BLUR THEM
+    this.coreMesh.renderOrder = 10; // SOVEREIGN: RENDER BEFORE PIPES TO BE SHARP
     this.group.add(this.coreMesh);
 
     // Outer Edge Highlight (Synchronized with rounded shape)
@@ -170,36 +168,34 @@ export class CubeGrid {
   addPlate(faceIndex, u, v, color) {
     const pos = this.getCellPosition(faceIndex, u, v);
     const normal = this.getFaceNormal(faceIndex);
-    const plateRadius = this.cellSize * 0.35;
-    const plateGeo = new THREE.CircleGeometry(plateRadius, 32);
+    const plateRadius = this.cellSize * 0.25; // SOVEREIGN REFINEMENT
+    const plateHeight = 0.04; 
+    const plateGeo = new THREE.CylinderGeometry(plateRadius, plateRadius, plateHeight, 32);
     
     // 1. Base Plate - ORIGINAL COLOR RESERVED
     const plateMat = new THREE.MeshPhysicalMaterial({ 
       color: new THREE.Color(color).multiplyScalar(0.7), 
-      roughness: 0.4, 
-      metalness: 0.1,
-      clearcoat: 0.3, 
+      roughness: 0.2, 
+      metalness: 0.0,
+      clearcoat: 1.0,      // SOVEREIGN: CLEARCOAT FOR EDGE HIGHLIGHTS
+      clearcoatRoughness: 0.1,
       transparent: false, 
       opacity: 1.0,       
-      side: THREE.DoubleSide
+      side: THREE.DoubleSide,
+      reflectivity: 0.5
     });
     const plate = new THREE.Mesh(plateGeo, plateMat);
-    plate.position.copy(pos).add(normal.clone().multiplyScalar(0.01));
+    // Cylinder by default is upright (along Y). Rotate it to match face normal.
+    plate.position.copy(pos).add(normal.clone().multiplyScalar(plateHeight / 2 + 0.001));
     plate.up.copy(this.getFaceUp(faceIndex));
     plate.lookAt(plate.position.clone().add(normal));
-    plate.renderOrder = 20;
+    plate.rotateX(Math.PI / 2); // Orient cylinder cap to look at normal
+    
+    plate.renderOrder = 50; // SHARP ON TOP
     this.group.add(plate);
 
-    // 2. Plate Outline (Subtle White Ring)
-    const outlineGeo = new THREE.EdgesGeometry(plateGeo);
-    const outlineMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6 });
-    const outline = new THREE.LineSegments(outlineGeo, outlineMat);
-    outline.position.set(0, 0, 0.001); // Relative to plate
-    outline.renderOrder = 22;
-    plate.add(outline);
-
-    // 3. Translucent Label - PURE WHITE OUTLINES (Smaller for better margins)
-    const labelGeo = new THREE.CircleGeometry(this.cellSize * 0.28, 32);
+    // 2. Translucent Label - PURE WHITE OUTLINES (Smaller for better margins)
+    const labelGeo = new THREE.CircleGeometry(this.cellSize * 0.22, 32);
     const labelMat = new THREE.MeshPhysicalMaterial({
       color: 0xffffff,
       transparent: true,
@@ -210,8 +206,10 @@ export class CubeGrid {
       side: THREE.DoubleSide
     });
     const labelMesh = new THREE.Mesh(labelGeo, labelMat);
-    labelMesh.position.set(0, 0, 0.002); // Relative to plate
-    labelMesh.renderOrder = 21; // Draw on top
+    // Move to front cap of the cylinder (it was rotated, Y is now front)
+    labelMesh.position.set(0, plateHeight / 2 + 0.001, 0); 
+    labelMesh.rotateX(-Math.PI / 2); // Flatten label against cap
+    labelMesh.renderOrder = 55; // Draw on top
     plate.add(labelMesh);
 
     this.group.add(plate);

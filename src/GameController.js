@@ -28,11 +28,14 @@ export class GameController {
   }
 
   calculateTargetSize(level) {
-    if (level < 20) return 5;
-    if (level < 35) return 6;
-    if (level < 60) return 7;
-    if (level < 100) return 8;
-    return 9;
+    if (level < 3) return 2;   // 2x2x2 Intro
+    if (level < 6) return 3;   // 3x3x3 Learning
+    if (level < 11) return 4;  // 4x4x4 Intermediate
+    if (level < 26) return 5;  // 5x5x5 Core
+    if (level < 46) return 6;  // 6x6x6 Expansion
+    if (level < 76) return 7;  // 7x7x7 High Difficulty
+    if (level < 121) return 8; // 8x8x8 Advanced
+    return 9;                  // 9x9x9 Sovereign Maximum
   }
 
   initLevel() {
@@ -45,6 +48,7 @@ export class GameController {
     if (this.grid.size !== targetSize) {
         this.grid.rebuild(targetSize);
     }
+    if (window.fitCameraToCube) window.fitCameraToCube(targetSize);
 
     // 3. Clear old state
     this.plates.forEach(p => {

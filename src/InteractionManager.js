@@ -54,12 +54,18 @@ export class InteractionManager {
     this.baseCameraDistance = 11.5;
     this.targetCameraDistance = 11.5;
     this.currentCameraDistance = 11.5;
-    this.minDistance = 6;
+    this.minDistance = 1.5; // SOVEREIGN: UNRESTRICTED CLOSE ZOOM
     this.maxDistance = 25;
     
     // Pinch state
     this.activePointers = new Map();
     this.initialPinchDistance = 0;
+
+    // Victory / Celebration
+    this.isVictorious = false;
+    this.lastNudgeTime = 0;
+    this.nudgeInterval = 1500; // ms
+    this.victoryAxis = new THREE.Vector3(0, 1, 0);
 
     this.initEvents();
   }
@@ -389,6 +395,27 @@ export class InteractionManager {
             this.grid.group.quaternion.copy(this.identityQuaternion);
             this.isResetting = false;
         }
+    } else if (this.isVictorious) {
+        // VICTORY CELEBRATION: Stochastic Pulse & Tumble
+        const now = Date.now();
+        if (now - this.lastNudgeTime > this.nudgeInterval) {
+            this.lastNudgeTime = now;
+            // Select random axis
+            const axes = [new THREE.Vector3(1,0,0), new THREE.Vector3(0,1,0), new THREE.Vector3(0,0,1)];
+            this.victoryAxis = axes[Math.floor(Math.random() * axes.length)];
+            // Apply speed nudge (Slightly lighter pulses)
+            this.targetRotationVelocity += (0.02 + Math.random() * 0.03); 
+            // Randomly vary the interval for a more "organic" feel
+            this.nudgeInterval = 1000 + Math.random() * 2000;
+        }
+
+        // Apply rotation and physical deceleration (damping)
+        this.currentRotationVelocity = THREE.MathUtils.lerp(this.currentRotationVelocity, this.targetRotationVelocity, 0.05);
+        this.grid.group.rotateOnAxis(this.victoryAxis, this.currentRotationVelocity);
+        
+        // Constant natural drag (slow down)
+        this.targetRotationVelocity *= 0.98;
+
     } else {
         this.currentRotationVelocity = THREE.MathUtils.lerp(this.currentRotationVelocity, this.targetRotationVelocity, this.lerpFactor);
         if (this.lockedLocalAxis !== null && Math.abs(this.currentRotationVelocity) > 0.0001) {
@@ -406,7 +433,7 @@ export class InteractionManager {
     path.meshesByCell = {};
 
     const isActive = (path === this.activePath && !path.isCompleted);
-    const pipeR = 0.25; 
+    const pipeR = 0.20; // SOVEREIGN REFINEMENT
 
     // 1. RIBBON MODE (Tactical Active Draw)
     if (isActive) {
@@ -417,7 +444,7 @@ export class InteractionManager {
         side: THREE.DoubleSide,
         depthWrite: false
       });
-      const ribbonW = this.grid.cellSize * 0.45;
+      const ribbonW = this.grid.cellSize * 0.35; // SOVEREIGN REFINEMENT
       const surfaceOffset = 0.01;
 
       for (let i = 0; i < path.cells.length; i++) {
@@ -430,7 +457,7 @@ export class InteractionManager {
         const joint = new THREE.Mesh(jointGeo, ribbonMat);
         joint.position.copy(cellPos);
         joint.lookAt(cellPos.clone().add(this.grid.getFaceNormal(c.f)));
-        joint.renderOrder = 30;
+        joint.renderOrder = 60; // TOP LAYER
         this.grid.group.add(joint);
         path.meshes.push(joint);
         path.meshesByCell[i].push(joint);
@@ -450,7 +477,7 @@ export class InteractionManager {
             seg.position.copy(cellPos.clone().add(prevPos).multiplyScalar(0.5));
             seg.quaternion.setFromRotationMatrix(new THREE.Matrix4().lookAt(cellPos, prevPos, this.grid.getFaceNormal(c.f)));
             seg.rotateX(Math.PI/2);
-            seg.renderOrder = 30;
+            seg.renderOrder = 60; // TOP LAYER
             this.grid.group.add(seg);
             path.meshes.push(seg);
             path.meshesByCell[i].push(seg);
@@ -475,7 +502,7 @@ export class InteractionManager {
               seg.position.copy(set.p.clone().add(set.target).multiplyScalar(0.5));
               seg.quaternion.setFromRotationMatrix(new THREE.Matrix4().lookAt(set.p, set.target, set.n));
               seg.rotateX(Math.PI/2);
-              seg.renderOrder = 30;
+              seg.renderOrder = 60;
               this.grid.group.add(seg);
               path.meshes.push(seg);
               path.meshesByCell[i].push(seg);
@@ -490,10 +517,10 @@ export class InteractionManager {
     const mat = new THREE.MeshPhysicalMaterial({ 
       color: new THREE.Color(path.color),
       emissive: new THREE.Color(path.color),
-      emissiveIntensity: 0.01,
+      emissiveIntensity: 0.0, // SOVEREIGN: NO HAZE GLOW
       roughness: this.grid.roughness, 
       ior: this.grid.ior,
-      metalness: 0.0,
+      metalness: 0.0,       // SOVEREIGN: MATTE PIPE (NO HAZE)
       transmission: 0.0, 
       transparent: false,
       opacity: 1.0,
@@ -576,6 +603,21 @@ export class InteractionManager {
             path.meshes.push(eJ);
             path.meshesByCell[endIdx].push(eJ);
         }
+    }
+    // Final pass for all meshes in the path to ensure they are on top
+    path.meshes.forEach(m => m.renderOrder = 60);
+  }
+
+  setVictory(bool) {
+    this.isVictorious = bool;
+    if (bool) {
+        this.targetRotationVelocity = 0.04; // Lighter initial kick
+        this.lastNudgeTime = Date.now();
+        this.victoryAxis = new THREE.Vector3(Math.random(), Math.random(), Math.random()).normalize();
+    } else {
+        this.targetRotationVelocity = 0;
+        this.currentRotationVelocity = 0;
+        this.resetOrientation();
     }
   }
 

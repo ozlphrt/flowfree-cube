@@ -20,6 +20,7 @@ export class SettingsPanel {
     this.audioBtn = document.getElementById('audio-icon-btn');
     this.themeBtn = document.getElementById('theme-icon-btn');
     this.lvlBtn = document.getElementById('lvl-btn');
+    this.versionBtn = document.getElementById('version-btn');
 
     if (!this.btn || !this.panel) return;
 
@@ -54,12 +55,19 @@ export class SettingsPanel {
     if (this.lvlBtn) {
       this.lvlBtn.onclick = (e) => {
         e.stopPropagation();
-        const res = window.prompt("Jump To Level:", "1");
-        const lvl = parseInt(res, 10);
-        if (!isNaN(lvl) && lvl > 0) {
-            this.triggerChange({ levelJump: lvl });
-            this.panel.classList.add('hidden'); // Close after jump
-        }
+        if (window.showLevelModal) window.showLevelModal();
+        this.panel.classList.add('hidden'); // Close settings
+      };
+    }
+
+    if (this.versionBtn) {
+      const vIcon = this.versionBtn.querySelector('.version-icon');
+      if (vIcon) vIcon.innerText = "VER";
+
+      this.versionBtn.onclick = (e) => {
+          e.stopPropagation();
+          if (window.showVersionModal) window.showVersionModal();
+          this.panel.classList.add('hidden'); // Close settings
       };
     }
 
