@@ -244,7 +244,7 @@ export class CubeGrid {
         fg.mesh.visible = (dot > 0.1); 
     });
 
-    // 2. SOVEREIGN COMPASS LABELS (GREEN-AXIS CONSTRAINED) - RESTORED
+    // 2. SOVEREIGN COMPASS LABELS (GREEN-AXIS CONSTRAINED)
     this.labelMeshes.forEach(label => {
         if (!label.parent) return; 
         
@@ -272,6 +272,12 @@ export class CubeGrid {
             label.rotation.z -= angleDelta * 0.05; 
         }
     });
+  }
+
+  // Helper to remove ribbon-specific labels from focus/compass
+  removeLabels(meshes) {
+    if (!meshes || meshes.length === 0) return;
+    this.labelMeshes = this.labelMeshes.filter(m => !meshes.includes(m));
   }
 
   getNeighborCells(cell) {

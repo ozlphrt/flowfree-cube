@@ -1,7 +1,12 @@
 import * as THREE from 'three';
 
 export class TextureHelper {
+  static labelCache = new Map();
+
   static createLabeledTexture(colorHex, label) {
+    const key = `${colorHex}_${label}`;
+    if (this.labelCache.has(key)) return this.labelCache.get(key);
+
     const canvas = document.createElement('canvas');
     canvas.width = 512;
     canvas.height = 512;
@@ -32,6 +37,7 @@ export class TextureHelper {
     texture.anisotropy = 16;
     texture.needsUpdate = true;
 
+    this.labelCache.set(key, texture);
     return texture;
   }
 

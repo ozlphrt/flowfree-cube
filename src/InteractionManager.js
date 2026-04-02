@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { soundManager } from './SoundManager.js';
+import { TextureHelper } from './TextureHelper.js';
 
 export class InteractionManager {
   constructor(camera, grid, renderer, gameController, scene) {
@@ -432,14 +433,24 @@ export class InteractionManager {
     if (!force && path._lastDrawnLength === path.cells.length) return;
     path._lastDrawnLength = path.cells.length;
 
+    // 1. Cleanup existing meshes and labels
     path.meshes.forEach(m => this.grid.group.remove(m));
     path.meshes = [];
     path.meshesByCell = {};
 
+    if (path.ribbonLabels) {
+        this.grid.removeLabels(path.ribbonLabels);
+        path.ribbonLabels = [];
+    } else {
+        path.ribbonLabels = [];
+    }
+
     const isActive = (path === this.activePath && !path.isCompleted);
     const pipeR = 0.20; // SOVEREIGN REFINEMENT
+    const surfaceOffset = 0.01;
+    const ribbonW = this.grid.cellSize * 0.35;
 
-    // 1. RIBBON MODE (Tactical Active Draw)
+    // 2. RIBBON MODE (Tactical Active Draw)
     if (isActive) {
       const ribbonMat = new THREE.MeshBasicMaterial({ 
         color: new THREE.Color(path.color),
@@ -448,8 +459,16 @@ export class InteractionManager {
         side: THREE.DoubleSide,
         depthWrite: false
       });
-      const ribbonW = this.grid.cellSize * 0.35; // SOVEREIGN REFINEMENT
-      const surfaceOffset = 0.01;
+
+      // Create a shared label material for this redraw (cached texture)
+      const labelTexture = TextureHelper.createLabeledTexture(path.color, path.label);
+      const labelMat = new THREE.MeshBasicMaterial({
+          map: labelTexture,
+          transparent: true,
+          opacity: 1.0,
+          depthWrite: false,
+          side: THREE.DoubleSide
+      });
 
       for (let i = 0; i < path.cells.length; i++) {
         path.meshesByCell[i] = [];
@@ -466,33 +485,33 @@ export class InteractionManager {
         path.meshes.push(joint);
         path.meshesByCell[i].push(joint);
 
+        // SOVEREIGN RIBBON LABEL (Numbers on the path while drawing)
+        const labelGeo = new THREE.CircleGeometry(ribbonW * 0.38, 32);
+        const label = new THREE.Mesh(labelGeo, labelMat);
+        label.position.set(0, 0, 0.001); // Tiny offset from joint
+        joint.add(label);
+        path.ribbonLabels.push(label);
+        this.grid.labelMeshes.push(label); // Register for compass alignment
+
         // Segment to PREVIOUS cell
         if (i > 0) {
           const prev = path.cells[i-1];
           const prevPos = this.grid.getCellPosition(prev.f, prev.u, prev.v).add(this.grid.getFaceNormal(prev.f).multiplyScalar(surfaceOffset));
           
           if (c.f === prev.f) {
-            // Straight segment on same face
             const dist = cellPos.distanceTo(prevPos);
             const segGeo = new THREE.PlaneGeometry(ribbonW, dist);
-            // Flip UVs for directionality: flow from start to end (or end to start?) 
-            // We want flow to follow the draw.
             const seg = new THREE.Mesh(segGeo, ribbonMat);
             seg.position.copy(cellPos.clone().add(prevPos).multiplyScalar(0.5));
             seg.quaternion.setFromRotationMatrix(new THREE.Matrix4().lookAt(cellPos, prevPos, this.grid.getFaceNormal(c.f)));
             seg.rotateX(Math.PI/2);
-            seg.renderOrder = 60; // TOP LAYER
+            seg.renderOrder = 60;
             this.grid.group.add(seg);
             path.meshes.push(seg);
             path.meshesByCell[i].push(seg);
           } else {
-            // Cross-face Wrap (Corner)
-            const n1 = this.grid.getFaceNormal(prev.f);
-            const n2 = this.grid.getFaceNormal(c.f);
-            const h = this.grid.halfExtents;
-            
-            // Corner Wrapping Point (Robust)
-            const h_off = h + surfaceOffset;
+            const n1 = this.grid.getFaceNormal(prev.f), n2 = this.grid.getFaceNormal(c.f);
+            const h = this.grid.halfExtents, h_off = h + surfaceOffset;
             const eP = new THREE.Vector3();
             if (n1.x !== 0) eP.x = h_off * n1.x; else if (n2.x !== 0) eP.x = h_off * n2.x; else eP.x = prevPos.x;
             if (n1.y !== 0) eP.y = h_off * n1.y; else if (n2.y !== 0) eP.y = h_off * n2.y; else eP.y = prevPos.y;
@@ -517,14 +536,14 @@ export class InteractionManager {
       return; 
     }
 
-    // 2. PIPE MODE (Completed Paths)
+    // 3. PIPE MODE (Completed Paths)
     const mat = new THREE.MeshPhysicalMaterial({ 
       color: new THREE.Color(path.color),
       emissive: new THREE.Color(path.color),
-      emissiveIntensity: 0.0, // SOVEREIGN: NO HAZE GLOW
+      emissiveIntensity: 0.0,
       roughness: this.grid.roughness, 
       ior: this.grid.ior,
-      metalness: 0.0,       // SOVEREIGN: MATTE PIPE (NO HAZE)
+      metalness: 0.0,
       transmission: 0.0, 
       transparent: false,
       opacity: 1.0,
@@ -539,8 +558,7 @@ export class InteractionManager {
         const cellPos = this.grid.getCellPosition(c.f, c.u, c.v).add(this.grid.getFaceNormal(c.f).multiplyScalar(0.121));
         let needsJoint = (i === 0 || i === path.cells.length - 1);
         if (i > 0 && i < path.cells.length - 1) {
-            const prev = path.cells[i-1];
-            const next = path.cells[i+1];
+            const prev = path.cells[i-1], next = path.cells[i+1];
             if (prev.f !== c.f || next.f !== c.f) needsJoint = true;
             else if ((prev.u !== next.u) && (prev.v !== next.v)) needsJoint = true;
         }
@@ -565,8 +583,7 @@ export class InteractionManager {
         }
     }
     for (let j = 1; j < jointIndices.length; j++) {
-        const startIdx = jointIndices[j-1];
-        const endIdx = jointIndices[j];
+        const startIdx = jointIndices[j-1], endIdx = jointIndices[j];
         const pC = path.cells[startIdx], c = path.cells[endIdx];
         const pP = this.grid.getCellPosition(pC.f, pC.u, pC.v).add(this.grid.getFaceNormal(pC.f).multiplyScalar(0.121));
         const cellPos = this.grid.getCellPosition(c.f, c.u, c.v).add(this.grid.getFaceNormal(c.f).multiplyScalar(0.121));
@@ -585,22 +602,14 @@ export class InteractionManager {
             if (n1.x !== 0) eP.x = (h + offset) * n1.x; else if (n2.x !== 0) eP.x = (h + offset) * n2.x; else eP.x = pP.x;
             if (n1.y !== 0) eP.y = (h + offset) * n1.y; else if (n2.y !== 0) eP.y = (h + offset) * n2.y; else eP.y = pP.y;
             if (n1.z !== 0) eP.z = (h + offset) * n1.z; else if (n2.z !== 0) eP.z = (h + offset) * n2.z; else eP.z = pP.z;
-            const seg1Geo = new THREE.CylinderGeometry(this.grid.cellSize * pipeR, this.grid.cellSize * pipeR, pP.distanceTo(eP), 24);
-            seg1Geo.rotateX(Math.PI / 2);
-            const seg1 = new THREE.Mesh(seg1Geo, mat);
-            seg1.position.copy(pP.clone().add(eP).multiplyScalar(0.5));
-            seg1.lookAt(eP);
-            this.grid.group.add(seg1);
-            path.meshes.push(seg1);
-            path.meshesByCell[endIdx].push(seg1);
-            const seg2Geo = new THREE.CylinderGeometry(this.grid.cellSize * pipeR, this.grid.cellSize * pipeR, cellPos.distanceTo(eP), 24);
-            seg2Geo.rotateX(Math.PI / 2);
-            const seg2 = new THREE.Mesh(seg2Geo, mat);
-            seg2.position.copy(cellPos.clone().add(eP).multiplyScalar(0.5));
-            seg2.lookAt(cellPos);
-            this.grid.group.add(seg2);
-            path.meshes.push(seg2);
-            path.meshesByCell[endIdx].push(seg2);
+            const seg1Geo = new THREE.CylinderGeometry(this.grid.cellSize * pipeR, this.grid.cellSize * pipeR, pP.distanceTo(eP), 24), seg2Geo = new THREE.CylinderGeometry(this.grid.cellSize * pipeR, this.grid.cellSize * pipeR, cellPos.distanceTo(eP), 24);
+            seg1Geo.rotateX(Math.PI / 2); seg2Geo.rotateX(Math.PI / 2);
+            const seg1 = new THREE.Mesh(seg1Geo, mat), seg2 = new THREE.Mesh(seg2Geo, mat);
+            seg1.position.copy(pP.clone().add(eP).multiplyScalar(0.5)); seg1.lookAt(eP);
+            seg2.position.copy(cellPos.clone().add(eP).multiplyScalar(0.5)); seg2.lookAt(cellPos);
+            this.grid.group.add(seg1); this.grid.group.add(seg2);
+            path.meshes.push(seg1); path.meshes.push(seg2);
+            path.meshesByCell[endIdx].push(seg1); path.meshesByCell[endIdx].push(seg2);
             const eJ = new THREE.Mesh(new THREE.SphereGeometry(this.grid.cellSize * pipeR, 24, 24), mat);
             eJ.position.copy(eP);
             this.grid.group.add(eJ);
