@@ -6,8 +6,8 @@
     <title>3D FlowFree | Labeled Challenge</title>
     <link rel="icon" type="image/png" href="/flowfree-cube/192.png" />
     <link rel="apple-touch-icon" href="/flowfree-cube/192.png">
-    <script type="module" crossorigin src="/flowfree-cube/assets/index-CJzxelmv.js"></script>
-    <link rel="stylesheet" crossorigin href="/flowfree-cube/assets/index-DM1akEsJ.css">
+    <script type="module" crossorigin src="/flowfree-cube/assets/index-RMGs2CGO.js"></script>
+    <link rel="stylesheet" crossorigin href="/flowfree-cube/assets/index-DVASvOmv.css">
   <link rel="manifest" href="/flowfree-cube/manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/flowfree-cube/registerSW.js"></script></head>
   <body>
     <div id="ui-layer">
@@ -68,6 +68,34 @@
         </div>
     </div>
 
+    <!-- Custom Level Jump Modal -->
+    <div id="level-modal" class="modal hidden">
+        <div class="modal-content glass vertical-modal">
+            <div class="modal-label">JUMP TO LEVEL</div>
+            <input type="number" id="level-input" min="1" max="999" value="1">
+            <div class="modal-actions">
+                <button id="level-cancel-btn" class="secondary-btn">CANCEL</button>
+                <button id="level-jump-btn" class="primary-btn">GO</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Version Modal -->
+    <div id="version-modal" class="modal hidden">
+        <div class="modal-content glass vertical-modal">
+            <div class="modal-label">SOVEREIGN CUBE</div>
+            <div class="version-details">
+                <div class="v-row"><span>VERSION</span> <strong id="v-num">v1.163.0</strong></div>
+                <div class="v-row"><span>BUILD</span> <code id="v-commit">8f2a91b</code></div>
+                <div class="v-row"><span>DATE</span> <span id="v-date">2026-04-02</span></div>
+            </div>
+            <div class="modal-actions">
+                <button id="v-copy-btn" class="secondary-btn">COPY INFO</button>
+                <button id="v-close-btn" class="primary-btn">DONE</button>
+            </div>
+        </div>
+    </div>
+
     <!-- UI: Settings System -->
     <button id="settings-btn" aria-label="Settings">
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -103,6 +131,12 @@
         <div class="settings-group toggle-group" id="lvl-btn" title="Jump to Level">
             <span class="settings-icon lvl-icon">
                 LVL
+            </span>
+        </div>
+
+        <div class="settings-group toggle-group" id="version-btn" title="App Information">
+            <span class="settings-icon version-icon">
+                VER
             </span>
         </div>
     </div>
