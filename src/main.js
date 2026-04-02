@@ -14,7 +14,7 @@ registerSW({ onOfflineReady() {} });
 
 // VERSION CHECK - Reliable fetch-based update detection
 // This bypasses the service worker cache entirely.
-const CURRENT_VERSION = '1.176.0';
+const CURRENT_VERSION = '1.177.0';
 const VERSION_URL = '/flowfree-cube/version.json';
 
 async function checkForUpdate() {
@@ -213,6 +213,12 @@ if (compassBtn) {
     compassBtn.onclick = () => interactionManager.resetOrientation();
 }
 
+// RIGHT-CLICK / LONG-PRESS = COMPASS RESET
+document.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    interactionManager.resetOrientation();
+});
+
 if (restartBtn) {
     restartBtn.onclick = () => {
         gameController.initLevel();
@@ -242,29 +248,13 @@ nextLevelBtn.onclick = () => {
     gameController.nextLevel();
 };
 
-// PWA Update Engine
-const updateBanner = document.getElementById('update-banner');
-const reloadBtn = document.getElementById('reload-btn');
-let updateDetected = false;
-
-async function checkVersion(forced = false) {
-    if (updateDetected && !forced) return;
+// Fetch version.json on load to populate window.appVersion for the version modal
+(async () => {
     try {
-        const response = await fetch('/flowfree-cube/version.json?t=' + Date.now());
-        const data = await response.json();
-        window.appVersion = data; // Store for modal
-        if (data.version) {
-            const lastVersion = localStorage.getItem('flow_build_id');
-            if (lastVersion && lastVersion !== data.version) {
-                updateDetected = true;
-                if (updateBanner) updateBanner.classList.remove('hidden');
-            } else {
-                localStorage.setItem('flow_build_id', data.version);
-            }
-        }
+        const r = await fetch('/flowfree-cube/version.json?t=' + Date.now(), { cache: 'no-store' });
+        if (r.ok) window.appVersion = await r.json();
     } catch (e) {}
-}
-window.checkVersion = checkVersion;
+})();
 
 // Version Modal Logic
 window.showVersionModal = () => {
@@ -394,4 +384,4 @@ window.addEventListener('resize', () => {
 
 loop();
 fitCameraToCube(); // SOVEREIGN: Mandatory initial framing call
-console.log('3D FlowFree Sovereign Restoration Complete. Battery Optimized v1.176.0');
+console.log('3D FlowFree Sovereign Restoration Complete. Battery Optimized v1.177.0');
