@@ -1,1 +1,0 @@
-if('serviceWorker' in navigator) {window.addEventListener('load', () => {navigator.serviceWorker.register('/flowfree-cube/sw.js', { scope: '/flowfree-cube/' })})}
