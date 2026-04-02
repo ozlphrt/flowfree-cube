@@ -34,10 +34,17 @@
       <div class="hud-footer">
       </div>
 
-      <!-- Update Notification (Hidden) -->
-      <div id="update-banner" class="hidden">
-        <span class="update-text">NEW VERSION READY</span>
-        <button id="reload-btn">RELOAD</button>
+      <!-- Update Notification Modal (hidden until new SW detected) -->
+      <div id="update-banner" class="modal hidden">
+        <div class="modal-content glass vertical-modal">
+            <div class="victory-icon">↑</div>
+            <h2>UPDATE READY</h2>
+            <div class="modal-label">New version available</div>
+            <div class="modal-actions">
+                <button id="dismiss-update-btn" class="secondary-btn">LATER</button>
+                <button id="reload-btn" class="primary-btn">RELOAD</button>
+            </div>
+        </div>
       </div>
 
       <!-- Long-Press Radial Dial (Hidden) -->
