@@ -14,7 +14,7 @@ registerSW({ onOfflineReady() {} });
 
 // VERSION CHECK - Reliable fetch-based update detection
 // This bypasses the service worker cache entirely.
-const CURRENT_VERSION = '1.180.0';
+const CURRENT_VERSION = '1.185.1';
 const VERSION_URL = '/flowfree-cube/version.json';
 
 async function checkForUpdate() {
@@ -33,13 +33,32 @@ async function checkForUpdate() {
 function showUpdateModal() {
   const banner = document.getElementById('update-banner');
   if (!banner || !banner.classList.contains('hidden')) return;
+  
+  // Suppression: If they just saw it and didn't want it, don't nag until reload
+  if (sessionStorage.getItem('dismissedUpdate')) return;
+
   banner.classList.remove('hidden');
 
   const reloadBtn = document.getElementById('reload-btn');
   const dismissBtn = document.getElementById('dismiss-update-btn');
 
-  if (reloadBtn) reloadBtn.onclick = () => window.location.reload(true);
-  if (dismissBtn) dismissBtn.onclick = () => banner.classList.add('hidden');
+  if (reloadBtn) reloadBtn.onclick = () => {
+    // NUCLEAR OPTION: Unregister Service Worker + Force Bypass Cache
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(registrations => {
+            for (let reg of registrations) reg.unregister();
+            // Force hard reload with timestamp to break browser-native caching
+            window.location.href = window.location.origin + window.location.pathname + '?v=' + Date.now();
+        });
+    } else {
+        window.location.reload(true);
+    }
+  };
+  
+  if (dismissBtn) dismissBtn.onclick = () => {
+    sessionStorage.setItem('dismissedUpdate', 'true');
+    banner.classList.add('hidden');
+  };
 }
 
 // 1. Check immediately on load
@@ -372,4 +391,4 @@ window.addEventListener('resize', () => {
 
 loop();
 fitCameraToCube(); // SOVEREIGN: Mandatory initial framing call
-console.log('3D FlowFree Sovereign Restoration Complete. Battery Optimized v1.180.0');
+console.log('3D FlowFree Sovereign Restoration Complete. Battery Optimized v1.185.1');
