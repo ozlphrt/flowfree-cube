@@ -486,9 +486,10 @@ export class InteractionManager {
         path.meshesByCell[i].push(joint);
 
         // SOVEREIGN RIBBON LABEL (Numbers on the path while drawing)
-        const labelGeo = new THREE.CircleGeometry(ribbonW * 0.38, 32);
+        const labelGeo = new THREE.CircleGeometry(ribbonW * 0.45, 32); // LARGER FOR BETTER LEGIBILITY
         const label = new THREE.Mesh(labelGeo, labelMat);
-        label.position.set(0, 0, 0.001); // Tiny offset from joint
+        label.position.set(0, 0, 0.002); // Slightly higher offset
+        label.renderOrder = 75; // ENSURE ON TOP OF RIBBON
         joint.add(label);
         path.ribbonLabels.push(label);
         this.grid.labelMeshes.push(label); // Register for compass alignment
