@@ -6,24 +6,31 @@
     <title>3D FlowFree | Labeled Challenge</title>
     <link rel="icon" type="image/png" href="/flowfree-cube/192.png" />
     <link rel="apple-touch-icon" href="/flowfree-cube/192.png">
-    <script type="module" crossorigin src="/flowfree-cube/assets/index-CXTeSL0O.js"></script>
-    <link rel="stylesheet" crossorigin href="/flowfree-cube/assets/index-DXXV2s9_.css">
+    <script type="module" crossorigin src="/flowfree-cube/assets/index-CyfeN6DH.js"></script>
+    <link rel="stylesheet" crossorigin href="/flowfree-cube/assets/index-BCy5Nr2b.css">
   <link rel="manifest" href="/flowfree-cube/manifest.webmanifest"></head>
   <body>
     <div id="ui-layer">
       <!-- HUD BOTTOM UI: Unified Left/Right Controls -->
       <footer id="hud-bottom">
+      <!-- HUD BOTTOM UI: Unified Left/Center/Right Controls -->
+      <footer id="hud-bottom">
         <div id="hud-bottom-left" class="hud-bottom-container">
-            <div id="compass-btn" class="hud-icon-btn pointer-events-auto" title="Reset Orientation (Identity)">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M12 12V3M12 12H21M12 12L6 18" />
-                    <circle cx="12" cy="12" r="1.2" fill="currentColor" />
-                </svg>
-            </div>
             <div id="restart-btn" class="hud-icon-btn pointer-events-auto" title="Restart Level Progress">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
                     <path d="M3 3v5h5" />
+                </svg>
+            </div>
+        </div>
+
+        <div id="hud-bottom-center" class="hud-bottom-container">
+            <div id="compass-btn" class="hud-icon-btn hero-btn pointer-events-auto" title="Reset Orientation (X,Y,Z)">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round">
+                    <path d="M12 12V4" stroke="#34c759" /> <!-- Y: Green -->
+                    <path d="M12 12H20" stroke="#ff3b30" /> <!-- X: Red -->
+                    <path d="M12 12L6 18" stroke="#007aff" /> <!-- Z: Blue -->
+                    <circle cx="12" cy="12" r="1.2" fill="currentColor" />
                 </svg>
             </div>
         </div>
@@ -37,6 +44,18 @@
             </div>
         </div>
       </footer>
+
+      <!-- SOVEREIGN HUD: Solve Confirmation Modal -->
+      <div id="solve-modal" class="modal hidden">
+        <div class="modal-content glass vertical-modal">
+            <div class="modal-label">AUTO-SOLVE</div>
+            <h2 style="margin: 10px 0; font-size: 1.1rem; letter-spacing: 1px;">USE 1 LIFE?</h2>
+            <div class="modal-actions">
+                <button id="solve-cancel-btn" class="secondary-btn">LATER</button>
+                <button id="solve-confirm-btn" class="primary-btn">YES</button>
+            </div>
+        </div>
+      </div>
 
       <!-- SOVEREIGN HUD: Top Double-Pill Interface -->
       <header id="sovereign-hud">
@@ -108,7 +127,7 @@
         <div class="modal-content glass vertical-modal">
             <div class="modal-label">SOVEREIGN CUBE</div>
             <div class="version-details">
-                <div class="v-row"><span>VERSION</span> <strong id="v-num">v1.185.7</strong></div>
+                <div class="v-row"><span>VERSION</span> <strong id="v-num">v1.185.9</strong></div>
                 <div class="v-row"><span>BUILD</span> <code id="v-commit">8f2a91b</code></div>
                 <div class="v-row"><span>DATE</span> <span id="v-date">2026-04-02</span></div>
             </div>
