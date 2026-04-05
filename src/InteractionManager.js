@@ -74,10 +74,20 @@ export class InteractionManager {
   initEvents() {
     const canvas = this.renderer.domElement;
     this.compassBtn = document.getElementById('compass-btn');
+    this.restartBtn = document.getElementById('restart-btn');
+
     if (this.compassBtn) {
         this.compassBtn.addEventListener('pointerdown', (e) => { 
             e.stopPropagation(); 
             this.resetOrientation(); 
+        });
+    }
+
+    if (this.restartBtn) {
+        this.restartBtn.addEventListener('pointerdown', (e) => {
+            e.stopPropagation();
+            this.gameController.initLevel();
+            this.resetOrientation();
         });
     }
 

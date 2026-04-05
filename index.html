@@ -10,10 +10,18 @@
   <body>
     <div id="ui-layer">
     <!-- Compass (Bottom-Left in CSS) -->
-    <div id="compass-btn" class="hud-btn pointer-events-auto" title="Reset Orientation">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M16.24 7.76l-2.12 6.36-6.36 2.12 2.12-6.36 6.36-2.12z"></path>
-            <circle cx="12" cy="12" r="10"></circle>
+    <div id="compass-btn" class="hud-btn pointer-events-auto" title="Reset Orientation (Identity)">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 12V3M12 12H21M12 12L6 18" />
+            <circle cx="12" cy="12" r="1.2" fill="currentColor" />
+        </svg>
+    </div>
+
+    <!-- RESTART: Clear Progress and Return to Identity -->
+    <div id="restart-btn" class="hud-btn pointer-events-auto" title="Restart Level Progress">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+            <path d="M3 3v5h5" />
         </svg>
     </div>
       <!-- SOVEREIGN HUD: Top Double-Pill Interface -->
@@ -86,7 +94,7 @@
         <div class="modal-content glass vertical-modal">
             <div class="modal-label">SOVEREIGN CUBE</div>
             <div class="version-details">
-                <div class="v-row"><span>VERSION</span> <strong id="v-num">v1.185.4</strong></div>
+                <div class="v-row"><span>VERSION</span> <strong id="v-num">v1.185.5</strong></div>
                 <div class="v-row"><span>BUILD</span> <code id="v-commit">8f2a91b</code></div>
                 <div class="v-row"><span>DATE</span> <span id="v-date">2026-04-02</span></div>
             </div>

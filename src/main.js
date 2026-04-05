@@ -14,7 +14,7 @@ registerSW({ onOfflineReady() {} });
 
 // VERSION CHECK - Reliable fetch-based update detection
 // This bypasses the service worker cache entirely.
-const CURRENT_VERSION = '1.185.4';
+const CURRENT_VERSION = '1.185.5';
 const VERSION_URL = '/flowfree-cube/version.json';
 
 async function checkForUpdate() {
@@ -233,25 +233,8 @@ settingsPanel.onRefill = () => gameController.refillLives();
 // 4. UI Hookups
 const victoryModal = document.getElementById('victory-modal');
 const nextLevelBtn = document.getElementById('next-level-btn');
-const compassBtn = document.getElementById('compass-btn');
-const restartBtn = document.getElementById('restart-btn');
+// HUD button events and contextmenu are now handled centrally within InteractionManager.js using pointerdown
 
-if (compassBtn) {
-    compassBtn.onclick = () => interactionManager.resetOrientation();
-}
-
-// RIGHT-CLICK / LONG-PRESS = COMPASS RESET
-document.addEventListener('contextmenu', (e) => {
-    e.preventDefault();
-    interactionManager.resetOrientation();
-});
-
-if (restartBtn) {
-    restartBtn.onclick = () => {
-        gameController.initLevel();
-        interactionManager.resetOrientation();
-    };
-}
 
 function updateHUD() {
     const { completed, total } = gameController.getStats();
