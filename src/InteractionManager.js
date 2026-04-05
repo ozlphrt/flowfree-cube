@@ -74,6 +74,7 @@ export class InteractionManager {
   initEvents() {
     const canvas = this.renderer.domElement;
     this.compassBtn = document.getElementById('compass-btn');
+    this.compassIcon = document.getElementById('compass-icon');
     this.restartBtn = document.getElementById('restart-btn');
 
     if (this.compassBtn) {
@@ -399,6 +400,13 @@ export class InteractionManager {
     this.currentCameraDistance = THREE.MathUtils.lerp(this.currentCameraDistance, this.targetCameraDistance, 0.1);
     const camDir = this.camera.position.clone().normalize();
     this.camera.position.copy(camDir.multiplyScalar(this.currentCameraDistance));
+
+    // SOVEREIGN COMPASS: Sync rotation with cube Y-axis
+    if (this.compassIcon) {
+        const euler = new THREE.Euler().setFromQuaternion(this.grid.group.quaternion, 'YXZ');
+        const rotationDegrees = -THREE.MathUtils.radToDeg(euler.y);
+        this.compassIcon.style.transform = `rotate(${rotationDegrees}deg)`;
+    }
 
     if (this.isVictorious) {
         if (!this.isDragging) {
