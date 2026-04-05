@@ -206,8 +206,9 @@ body.dark-theme .hud-pill.clickable:hover {
   font-size: 1.1rem;
   font-weight: 900;
   color: var(--text-main);
-  min-width: 1rem;
-  text-align: center;
+  text-shadow: 0 0 10px rgba(255,255,255,0.3);
+  display: inline-block;
+  transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .wrench-pill svg {

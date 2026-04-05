@@ -6,10 +6,11 @@ export class PuzzleGenerator {
     const startTime = Date.now();
     const rng = new SeedRandom(level * 48271); // Use level as seed with a multiplier
     const totalCells = grid.size * grid.size * 6;
-    const targetDensity = (level < 35) ? 0.6 : 0.8; // Target 80% for high levels
-    const colors = Object.values(COLORS);
+    // 1. Difficulty Curve Parameters: Progressive Density & Complexity
+    const targetDensity = Math.min(0.85, 0.45 + (Math.min(level, 120) / 120) * 0.4); 
+    const minPairs = (level < 6) ? 2 : (level < 16 ? 5 : (level < 46 ? 7 : 9));
     
-    // 1. Difficulty Curve Parameters: Aggressive 3D First
+    // Aggressive 3D First (Locked at Level 6+)
     let forceFaceCrossingProb = 0;
     if (level >= 3 && level < 6) forceFaceCrossingProb = 0.5;
     if (level >= 6) forceFaceCrossingProb = 0.95;
@@ -23,13 +24,13 @@ export class PuzzleGenerator {
     const allTerminals = [];
     let colorIdx = 0;
 
-    // Solver loop: Keep adding pairs until density or timeout
+    // Solver loop: Keep adding pairs until density AND minPairs are met
     const generatePuzzle = () => {
         let attempts = 0;
-        const maxAttempts = 100;
+        const maxAttempts = 150; // Increased for high complexity
         
-        const minPairs = grid.size <= 3 ? 2 : 1;
-        while ((occupied.size < totalCells * targetDensity || resultPairs.length < minPairs) && attempts < maxAttempts) {
+        const targetOccupied = Math.floor(totalCells * targetDensity);
+        while ((occupied.size < targetOccupied || resultPairs.length < minPairs) && attempts < maxAttempts) {
             if (Date.now() - startTime > 2500) break; // Hard safety
             
             const color = colors[colorIdx % colors.length];
@@ -67,8 +68,13 @@ export class PuzzleGenerator {
     };
 
     generatePuzzle();
-    console.log(`Sovereign Seeded Generator v1.163: Level ${level} Generated in ${Date.now() - startTime}ms (Density: ${(occupied.size/totalCells).toFixed(2)})`);
-    return resultPairs;
+    const targetOccupied = Math.floor(totalCells * targetDensity);
+    console.log(`Sovereign Generator v1.186.1: Level ${level} Generated in ${Date.now() - startTime}ms (Occupied: ${occupied.size} / Target: ${targetOccupied})`);
+    
+    return { 
+        pairs: resultPairs, 
+        targetOccupied: targetOccupied 
+    };
   }
 
   static getStartEndCandidates(grid, occupied, existingTerminals, highDiff, rng) {

@@ -24,6 +24,8 @@ export class GameController {
     this.loader = document.getElementById('loader-overlay');
     this.lvlDisplay = document.getElementById('level-val');
     this.livesDisplay = document.getElementById('lives-val');
+    this.cellsDisplay = document.getElementById('cells-val');
+    this.targetOccupiedCells = 0;
 
     // Load persisted lives or default to 3
     const savedLives = localStorage.getItem('sovereign_lives');
@@ -71,7 +73,9 @@ export class GameController {
 
     // 4. Heavy Generation (Async for UI reactivity)
     setTimeout(() => {
-        const puzzle = PuzzleGenerator.generate(this.grid, this.currentLevel);
+        const result = PuzzleGenerator.generate(this.grid, this.currentLevel);
+        const puzzle = result.pairs;
+        this.targetOccupiedCells = result.targetOccupied;
         this.currentPuzzle = puzzle; // SOVEREIGN MEMORY: Store for the Auto Solver
         
         if (puzzle && puzzle.length > 0) {
@@ -82,6 +86,8 @@ export class GameController {
         } else {
             console.error(`Sovereign Generator: Failed Level ${this.currentLevel}`);
         }
+
+        this.updateCellCounter();
 
         if (this.loader) this.loader.classList.add('hidden');
         if (this.onUpdate) this.onUpdate();
@@ -104,6 +110,31 @@ export class GameController {
     labelMesh.material.needsUpdate = true;
 
     this.plates.push({ f, u, v, color, label, mesh: plate, labelMesh });
+    this.updateCellCounter();
+  }
+
+  updateCellCounter() {
+    if (!this.cellsDisplay) return;
+    
+    // Count occupied cells
+    let currentOccupied = 0;
+    // Plates (start/end)
+    currentOccupied += this.plates.length;
+    // Stubs
+    this.stubs.forEach(s => {
+        currentOccupied += Math.max(0, s.cells.length - 1); // Only count non-plate cells in stubs
+    });
+    // Completed Paths
+    this.completedPaths.forEach(p => {
+        currentOccupied += Math.max(0, p.cells.length - 2); // Only count bridge cells between plates
+    });
+
+    const remaining = Math.max(0, this.targetOccupiedCells - currentOccupied);
+    this.cellsDisplay.innerText = remaining;
+    
+    // Aesthetic: Subtle pulse on change
+    this.cellsDisplay.style.transform = 'scale(1.2)';
+    setTimeout(() => { this.cellsDisplay.style.transform = 'scale(1)'; }, 100);
   }
 
   refillLives() {
@@ -124,11 +155,13 @@ export class GameController {
   removeCompletedPath(path) {
     this.completedPaths = this.completedPaths.filter(p => p !== path);
     if (this.stubs.indexOf(path) === -1) this.stubs.push(path);
+    this.updateCellCounter();
     if (this.onUpdate) this.onUpdate();
   }
 
   addStub(stub) {
     if (this.stubs.indexOf(stub) === -1) this.stubs.push(stub);
+    this.updateCellCounter();
     if (this.onUpdate) this.onUpdate();
   }
 
@@ -138,6 +171,7 @@ export class GameController {
       path.isCompleted = true;
     }
     this.stats = { completed: 0, total: 0 };
+    this.updateCellCounter();
     if (this.onUpdate) this.onUpdate();
 
     // Check for Level Victory
@@ -156,6 +190,7 @@ export class GameController {
     path.isCompleted = false;
     const idx = this.completedPaths.indexOf(path);
     if (idx !== -1) this.completedPaths.splice(idx, 1);
+    this.updateCellCounter();
   }
 
   deletePathByPlate(f, u, v) {
