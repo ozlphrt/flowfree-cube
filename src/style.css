@@ -733,7 +733,6 @@ body.dark-theme .hud-icon-btn:hover {
   opacity: 1 !important;
 }
 
-/* Old button overrides removed in favor of .hud-icon-btn unified class */
 
 /* Mobile Battery Optimization */
 @media (max-width: 768px) {
