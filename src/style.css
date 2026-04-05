@@ -149,10 +149,9 @@ canvas {
   margin-bottom: 2px;
 }
 
-/* SOVEREIGN HUD: Double-Pill Design */
 #sovereign-hud {
   position: absolute;
-  top: 20px;
+  top: 10px;
   left: 0;
   width: 100%;
   display: flex;
@@ -647,9 +646,14 @@ body.dark-theme .hero-btn {
 }
 
 .hud-icon-btn svg {
-    width: 22px;
-    height: 22px;
+    width: 24px;
+    height: 24px;
     transition: transform 0.3s ease;
+}
+
+.hero-btn svg {
+    width: 46px !important;
+    height: 46px !important;
 }
 
 .hud-icon-btn:hover {
