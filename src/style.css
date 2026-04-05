@@ -12,8 +12,8 @@
 body.dark-theme {
   --primary-bg: #050505;
   --text-main: #eee;
-  --glass-bg: rgba(255, 255, 255, 0.2); 
-  --glass-border: rgba(255, 255, 255, 0.25);
+  --glass-bg: rgba(255, 255, 255, 0.1); /* CLEANER DARK GLASS */
+  --glass-border: rgba(255, 255, 255, 0.15);
   background: none !important;
 }
 
@@ -163,17 +163,18 @@ canvas {
 .hud-pill {
   pointer-events: auto;
   background: var(--glass-bg);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
   border: 1px solid var(--glass-border);
-  padding: 8px 16px;
+  padding: 8px 18px;
   border-radius: 999px;
   display: flex;
   align-items: center;
   gap: 10px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   user-select: none;
+  color: var(--text-main);
 }
 
 .hud-pill.clickable {
@@ -181,35 +182,36 @@ canvas {
 }
 
 .hud-pill.clickable:hover {
-  background: rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.1);
   transform: translateY(-2px);
-  border-color: rgba(255,255,255,0.4);
+  border-color: rgba(255,255,255,0.3);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.3);
 }
 
-.hud-pill.clickable:active {
-  transform: translateY(1px);
-  background: rgba(255,255,255,0.1);
+body.dark-theme .hud-pill.clickable:hover {
+  background: rgba(255,255,255,0.15);
 }
 
 .pill-label {
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   font-weight: 800;
-  letter-spacing: 0.1em;
-  color: rgba(255,255,255,0.6);
+  letter-spacing: 0.15em;
+  color: var(--text-main);
+  opacity: 0.5;
   text-transform: uppercase;
 }
 
 .pill-value {
   font-size: 1.1rem;
   font-weight: 900;
-  color: #fff;
+  color: var(--text-main);
   min-width: 1rem;
   text-align: center;
 }
 
 .wrench-pill svg {
   color: var(--success);
-  filter: drop-shadow(0 0 5px rgba(0,255,187,0.3));
+  filter: drop-shadow(0 0 8px rgba(52, 199, 89, 0.4));
 }
 
 /* Long-Press Radial Dial */
@@ -586,34 +588,81 @@ canvas {
   100% { transform: rotate(360deg); }
 }
 
-/* Settings Hub */
-#settings-btn {
-  position: absolute;
-  bottom: 30px;
-  right: 30px;
-  width: 40px;
-  height: 40px;
-  background: none;
-  border: none;
-  color: var(--text-main);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  cursor: pointer;
-  pointer-events: auto;
-  z-index: 1000;
-  opacity: 0.4; /* GHOSTLY MINIMALISM */
-  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s;
+/* HUD BOTTOM UI: Unified Design */
+#hud-bottom {
+    position: absolute;
+    bottom: 30px;
+    left: 0;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    padding: 0 30px;
+    pointer-events: none;
+    z-index: 5000;
 }
 
-#settings-btn:hover {
-  transform: scale(1.2) rotate(90deg);
-  opacity: 1;
+.hud-bottom-container {
+    display: flex;
+    gap: 12px;
+    pointer-events: none;
+}
+
+.hud-icon-btn {
+    pointer-events: auto;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 50%;
+    background: var(--glass-bg);
+    -webkit-backdrop-filter: blur(24px);
+    backdrop-filter: blur(24px);
+    border: 1px solid var(--glass-border);
+    color: var(--text-main);
+    cursor: pointer;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    opacity: 0.8;
+}
+
+.hud-icon-btn svg {
+    width: 22px;
+    height: 22px;
+    transition: transform 0.3s ease;
+}
+
+.hud-icon-btn:hover {
+    opacity: 1;
+    transform: translateY(-4px) scale(1.05);
+    background: rgba(255,255,255,0.1);
+    border-color: rgba(255,255,255,0.3);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+}
+
+body.dark-theme .hud-icon-btn:hover {
+    background: rgba(255,255,255,0.15);
+}
+
+.hud-icon-btn:active {
+    transform: translateY(0px) scale(0.95);
+}
+
+#compass-btn:hover svg {
+    transform: rotate(45deg);
+}
+
+#restart-btn:hover svg {
+    transform: rotate(-90deg);
+}
+
+#settings-btn:hover svg {
+    transform: rotate(90deg);
 }
 
 #settings-panel {
   position: absolute;
-  bottom: 85px;
+  bottom: 95px; /* LIFTED HIGHER TO ALIGN WITH LARGER BUTTONS */
   right: 30px;
   width: 70px;
   padding: 15px 10px;
@@ -683,38 +732,7 @@ canvas {
   opacity: 1 !important;
 }
 
-#compass-btn, #restart-btn {
-  position: absolute;
-  bottom: 30px;
-  width: 44px;
-  height: 44px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  background: var(--glass-bg);
-  backdrop-filter: blur(10px);
-  border: 1px solid var(--glass-border);
-  color: var(--text-main);
-  opacity: 0.4;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  z-index: 100;
-  pointer-events: auto;
-}
-
-#compass-btn { left: 30px; }
-#restart-btn { left: 84px; }
-
-#compass-btn:hover, #restart-btn:hover {
-  opacity: 1;
-  transform: scale(1.1) rotate(45deg);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-}
-
-#restart-btn:hover {
-  transform: scale(1.1) rotate(-90deg);
-}
+/* Old button overrides removed in favor of .hud-icon-btn unified class */
 
 /* Mobile Battery Optimization */
 @media (max-width: 768px) {
