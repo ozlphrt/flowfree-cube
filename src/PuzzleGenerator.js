@@ -9,6 +9,7 @@ export class PuzzleGenerator {
     // 1. Difficulty Curve Parameters: Progressive Density & Complexity
     const targetDensity = Math.min(0.85, 0.45 + (Math.min(level, 120) / 120) * 0.4); 
     const minPairs = (level < 6) ? 2 : (level < 16 ? 5 : (level < 46 ? 7 : 9));
+    const colors = Object.values(COLORS);
     
     // Aggressive 3D First (Locked at Level 6+)
     let forceFaceCrossingProb = 0;
