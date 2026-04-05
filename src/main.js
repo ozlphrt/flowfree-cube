@@ -14,7 +14,7 @@ registerSW({ onOfflineReady() {} });
 
 // VERSION CHECK - Reliable fetch-based update detection
 // This bypasses the service worker cache entirely.
-const CURRENT_VERSION = '1.185.2';
+const CURRENT_VERSION = '1.185.4';
 const VERSION_URL = '/flowfree-cube/version.json';
 
 async function checkForUpdate() {
@@ -228,6 +228,7 @@ function applySettings(settings) {
 }
 
 const settingsPanel = new SettingsPanel(applySettings);
+settingsPanel.onRefill = () => gameController.refillLives();
 
 // 4. UI Hookups
 const victoryModal = document.getElementById('victory-modal');

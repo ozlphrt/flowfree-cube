@@ -23,7 +23,14 @@ export class GameController {
     
     this.loader = document.getElementById('loader-overlay');
     this.lvlDisplay = document.getElementById('level-val');
+    this.livesDisplay = document.getElementById('lives-val');
+
+    // Load persisted lives or default to 3
+    const savedLives = localStorage.getItem('sovereign_lives');
+    this.lives = savedLives !== null ? parseInt(savedLives, 10) : 3;
+    if (this.livesDisplay) this.livesDisplay.innerText = this.lives;
     
+    this.isSolving = false; // GUARD: Prevent double-execution
     this.initLevel();
   }
 
@@ -65,6 +72,7 @@ export class GameController {
     // 4. Heavy Generation (Async for UI reactivity)
     setTimeout(() => {
         const puzzle = PuzzleGenerator.generate(this.grid, this.currentLevel);
+        this.currentPuzzle = puzzle; // SOVEREIGN MEMORY: Store for the Auto Solver
         
         if (puzzle && puzzle.length > 0) {
             puzzle.forEach(pair => {
@@ -98,6 +106,13 @@ export class GameController {
     this.plates.push({ f, u, v, color, label, mesh: plate, labelMesh });
   }
 
+  refillLives() {
+    this.lives = 3;
+    localStorage.setItem('sovereign_lives', this.lives);
+    if (this.livesDisplay) this.livesDisplay.innerText = this.lives;
+    soundManager.playLock(); // Tactical confirmation sound
+  }
+
   getPlateAt(f, u, v) {
     return this.plates.find(p => p.f === f && p.u === u && p.v === v);
   }
@@ -118,8 +133,11 @@ export class GameController {
   }
 
   addCompletedPath(path) {
-    this.stubs = this.stubs.filter(p => p !== path);
-    if (this.completedPaths.indexOf(path) === -1) this.completedPaths.push(path);
+    if (!this.completedPaths.includes(path)) {
+      this.completedPaths.push(path);
+      path.isCompleted = true;
+    }
+    this.stats = { completed: 0, total: 0 };
     if (this.onUpdate) this.onUpdate();
 
     // Check for Level Victory
@@ -128,14 +146,24 @@ export class GameController {
     }
   }
 
+  clearPath(path) {
+    if (path.meshes) {
+      path.meshes.forEach(m => this.grid.group.remove(m));
+      path.meshes = [];
+      path.meshesByCell = {};
+    }
+    
+    path.isCompleted = false;
+    const idx = this.completedPaths.indexOf(path);
+    if (idx !== -1) this.completedPaths.splice(idx, 1);
+  }
+
   deletePathByPlate(f, u, v) {
     const pathObj = this.stubs.find(s => s.cells.some(c => c.f === f && c.u === u && c.v === v)) ||
                    this.completedPaths.find(p => p.cells.some(c => c.f === f && c.u === u && c.v === v));
     
     if (pathObj) {
-      if (pathObj.meshes) {
-        pathObj.meshes.forEach(m => this.grid.group.remove(m));
-      }
+      this.clearPath(pathObj);
       this.stubs = this.stubs.filter(p => p !== pathObj);
       this.completedPaths = this.completedPaths.filter(p => p !== pathObj);
       if (this.onUpdate) this.onUpdate();
@@ -151,9 +179,7 @@ export class GameController {
     ];
 
     toClear.forEach(path => {
-        if (path.meshes) {
-            path.meshes.forEach(m => this.grid.group.remove(m));
-        }
+        this.clearPath(path);
         this.stubs = this.stubs.filter(s => s !== path);
         this.completedPaths = this.completedPaths.filter(p => p !== path);
     });
@@ -183,6 +209,96 @@ export class GameController {
   setPlateHighlight(plate, highlighted) {
     if (plate.labelMesh) {
       plate.labelMesh.material.emissiveIntensity = highlighted ? 1.0 : 0.0;
+    }
+  }
+
+  async solveBoard() {
+    // 1. Guard Clause: Logic check (Is solving currently in progress?)
+    if (!this.currentPuzzle || this.lives <= 0 || this.isSolving) return;
+    this.isSolving = true;
+
+    try {
+        // 2. Resource Consumption & Sync
+        this.lives--;
+        localStorage.setItem('sovereign_lives', this.lives);
+        if (this.livesDisplay) this.livesDisplay.innerText = this.lives;
+
+        // 3. Clear existing paths/stubs to prevent collision artifacts
+        this.stubs.forEach(s => s.meshes.forEach(m => this.grid.group.remove(m)));
+        this.completedPaths.forEach(p => p.meshes.forEach(m => this.grid.group.remove(m)));
+        this.stubs = [];
+        this.completedPaths = [];
+
+        // 4. SOVEREIGN TRACING: Reveal every cell and corner-wrap individually
+        for (const item of this.currentPuzzle) {
+            soundManager.playVent(); // Strategic click for new path start
+
+            const pathObj = {
+                color: item.color,
+                label: item.label,
+                startPlate: this.getPlateAt(item.path[0].f, item.path[0].u, item.path[0].v),
+                cells: [...item.path],
+                meshes: [],
+                meshesByCell: {}, // TRACKING: Essential for stable v1.185.3
+                isCompleted: true
+            };
+
+            const points = this.grid.getPathPoints(pathObj.cells);
+            const pipeR = 0.18;
+            const mat = new THREE.MeshPhysicalMaterial({
+                color: new THREE.Color(item.color),
+                roughness: 0.2, metalness: 0.1,
+                emissive: 0x000000, emissiveIntensity: 0.0, // ABSOLUTE GLOW PURGE
+                clearcoat: 0.0
+            });
+
+            const jointGeo = new THREE.SphereGeometry(pipeR, 12, 12);
+
+            this.addCompletedPath(pathObj);
+
+            // CINEMATIC TRACE LOOP
+            for (let i = 0; i < points.length; i++) {
+                const p = points[i].pos;
+                const cellIdx = points[i].cellIdx;
+                
+                // 1. Manifest the Joint
+                const joint = new THREE.Mesh(jointGeo, mat);
+                joint.position.copy(p);
+                joint.renderOrder = 60;
+                this.grid.group.add(joint);
+                pathObj.meshes.push(joint);
+                if (!pathObj.meshesByCell[cellIdx]) pathObj.meshesByCell[cellIdx] = [];
+                pathObj.meshesByCell[cellIdx].push(joint);
+
+                // 2. Manifest Segment to PREVIOUS (if exists)
+                if (i > 0) {
+                    const pPrev = points[i-1].pos;
+                    const dist = p.distanceTo(pPrev);
+                    if (dist > 0.001) {
+                        const geo = new THREE.CylinderGeometry(pipeR, pipeR, dist, 12);
+                        const mesh = new THREE.Mesh(geo, mat);
+                        mesh.position.copy(p).add(pPrev).multiplyScalar(0.5);
+                        mesh.lookAt(p);
+                        mesh.rotateX(Math.PI / 2);
+                        mesh.renderOrder = 60;
+                        this.grid.group.add(mesh);
+                        pathObj.meshes.push(mesh);
+                        pathObj.meshesByCell[cellIdx].push(mesh);
+                    }
+                }
+
+                // WAKE UP ENGINE
+                if (window.requestSovereignFrame) window.requestSovereignFrame();
+
+                // ORGANIC CADENCE: Cell-by-cell feel (~40ms)
+                await new Promise(r => setTimeout(r, 40));
+                soundManager.playTick(i); // Escalating pitch for the trace
+            }
+        }
+    } finally {
+        this.isSolving = false;
+        // 5. Final update hook
+        if (this.onUpdate) this.onUpdate();
     }
   }
 }

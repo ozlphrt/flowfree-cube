@@ -71,6 +71,15 @@ export class SettingsPanel {
       };
     }
 
+    this.refillBtn = document.getElementById('refill-btn');
+    if (this.refillBtn) {
+        this.refillBtn.onclick = (e) => {
+            e.stopPropagation();
+            if (this.onRefill) this.onRefill();
+            this.panel.classList.add('hidden'); // Close settings
+        };
+    }
+
     // Close on click outside
     window.addEventListener('pointerdown', (e) => {
       if (!this.panel.contains(e.target) && e.target !== this.btn) {

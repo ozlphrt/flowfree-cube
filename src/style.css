@@ -147,10 +147,69 @@ canvas {
   margin-bottom: 2px;
 }
 
-.hud-value {
-  font-size: 1.4rem;
+/* SOVEREIGN HUD: Double-Pill Design */
+#sovereign-hud {
+  position: absolute;
+  top: 20px;
+  left: 0;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  pointer-events: none;
+  z-index: 5000;
+}
+
+.hud-pill {
+  pointer-events: auto;
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  padding: 8px 16px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+}
+
+.hud-pill.clickable {
+  cursor: pointer;
+}
+
+.hud-pill.clickable:hover {
+  background: rgba(255,255,255,0.15);
+  transform: translateY(-2px);
+  border-color: rgba(255,255,255,0.4);
+}
+
+.hud-pill.clickable:active {
+  transform: translateY(1px);
+  background: rgba(255,255,255,0.1);
+}
+
+.pill-label {
+  font-size: 0.7rem;
   font-weight: 800;
-  color: var(--text-main);
+  letter-spacing: 0.1em;
+  color: rgba(255,255,255,0.6);
+  text-transform: uppercase;
+}
+
+.pill-value {
+  font-size: 1.1rem;
+  font-weight: 900;
+  color: #fff;
+  min-width: 1rem;
+  text-align: center;
+}
+
+.wrench-pill svg {
+  color: var(--success);
+  filter: drop-shadow(0 0 5px rgba(0,255,187,0.3));
 }
 
 /* Long-Press Radial Dial */
@@ -613,8 +672,15 @@ canvas {
   opacity: 0.6;
 }
 
-.toggle-group:hover .lvl-icon {
-  opacity: 1;
+.refill-icon {
+  color: var(--success) !important;
+  opacity: 0.9 !important;
+  filter: drop-shadow(0 0 5px rgba(52, 199, 89, 0.4));
+}
+
+.toggle-group:hover .lvl-icon,
+.toggle-group:hover .refill-icon {
+  opacity: 1 !important;
 }
 
 #compass-btn, #restart-btn {

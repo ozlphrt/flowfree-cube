@@ -73,6 +73,22 @@ export class InteractionManager {
 
   initEvents() {
     const canvas = this.renderer.domElement;
+    this.compassBtn = document.getElementById('compass-btn');
+    if (this.compassBtn) {
+        this.compassBtn.addEventListener('pointerdown', (e) => { 
+            e.stopPropagation(); 
+            this.resetOrientation(); 
+        });
+    }
+
+    // SOVEREIGN UTILITY: Hook up the Wrench Pill
+    this.solveBtn = document.getElementById('solve-btn');
+    if (this.solveBtn) {
+        this.solveBtn.addEventListener('pointerdown', (e) => { 
+            e.stopPropagation(); 
+            this.gameController.solveBoard(); 
+        });
+    }
     canvas.addEventListener('pointerdown', this.onPointerDown.bind(this));
     window.addEventListener('pointermove', this.onPointerMove.bind(this));
     window.addEventListener('pointerup', this.onPointerUp.bind(this));
@@ -429,216 +445,90 @@ export class InteractionManager {
   }
 
   redrawEntirePath(path, force = false) {
-    // SOVEREIGN PERFORMANCE: Only redraw if length changed or forced (completion)
     if (!force && path._lastDrawnLength === path.cells.length) return;
     path._lastDrawnLength = path.cells.length;
 
-    // 1. Cleanup existing meshes and labels
     path.meshes.forEach(m => this.grid.group.remove(m));
     path.meshes = [];
     path.meshesByCell = {};
-
-    if (path.ribbonLabels) {
-        path.ribbonLabels = [];
-    } else {
-        path.ribbonLabels = [];
-    }
+    path.ribbonLabels = [];
 
     const isActive = (path === this.activePath && !path.isCompleted);
-    const pipeR = 0.18; // SOVEREIGN REFINEMENT: SLEEKER PIPES
-    const surfaceOffset = 0.01;
-    const ribbonW = this.grid.cellSize * 0.32; // MATCHING SLEEKER LOOK
+    const ribbonW = this.grid.cellSize * 0.32;
+    const points = this.grid.getPathPoints(path.cells);
 
-    // 2. RIBBON MODE (Tactical Active Draw)
+    // 1. RIBBON MODE (Tactical Active Draw)
     if (isActive) {
       const ribbonMat = new THREE.MeshBasicMaterial({ 
         color: new THREE.Color(path.color),
-        transparent: true,
-        opacity: 0.9,
-        side: THREE.DoubleSide,
-        depthWrite: false
+        transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false
       });
 
-      // Create a shared label material for this redraw (cached texture)
       const labelTexture = TextureHelper.createLabeledTexture(path.color, path.label);
       const labelMat = new THREE.MeshBasicMaterial({
-          map: labelTexture,
-          transparent: true,
-          opacity: 1.0,
-          depthWrite: false,
-          side: THREE.DoubleSide
+          map: labelTexture, transparent: true, opacity: 1.0, depthWrite: false, side: THREE.DoubleSide
       });
 
-      for (let i = 0; i < path.cells.length; i++) {
-        path.meshesByCell[i] = [];
-        const c = path.cells[i];
-        const cellPos = this.grid.getCellPosition(c.f, c.u, c.v).add(this.grid.getFaceNormal(c.f).multiplyScalar(surfaceOffset));
-        
-        // Center Circle (Rounded joint)
-        const jointGeo = new THREE.CircleGeometry(ribbonW / 2, 32);
-        const joint = new THREE.Mesh(jointGeo, ribbonMat);
-        joint.position.copy(cellPos);
-        joint.lookAt(cellPos.clone().add(this.grid.getFaceNormal(c.f)));
-        joint.renderOrder = 60; // TOP LAYER
-        this.grid.group.add(joint);
-        path.meshes.push(joint);
-        path.meshesByCell[i].push(joint);
+      // Draw Joint Circles and Segment Planes
+      for (let i = 0; i < points.length; i++) {
+        const p = points[i].pos;
+        const cellIdx = points[i].cellIdx;
+        if (!path.meshesByCell[cellIdx]) path.meshesByCell[cellIdx] = [];
 
-        // SOVEREIGN RIBBON LABEL (Numbers on the path while drawing)
-        const labelGeo = new THREE.CircleGeometry(ribbonW * 0.45, 32); // LARGER FOR BETTER LEGIBILITY
-        const label = new THREE.Mesh(labelGeo, labelMat);
-        label.position.set(0, 0, 0.002); // Slightly higher offset
-        label.renderOrder = 75; // ENSURE ON TOP OF RIBBON
-        joint.add(label);
-        path.ribbonLabels.push(label);
+        // Joint at every cell center
+        if (points[i].isCenter || i === 0 || i === points.length - 1) {
+            const normal = this.grid.getFaceNormal(path.cells[cellIdx].f);
+            const jointGeo = new THREE.CircleGeometry(ribbonW / 2, 32);
+            const joint = new THREE.Mesh(jointGeo, ribbonMat);
+            joint.position.copy(p);
+            joint.lookAt(p.clone().add(normal));
+            joint.renderOrder = 60;
+            this.grid.group.add(joint);
+            path.meshes.push(joint);
+            path.meshesByCell[cellIdx].push(joint);
 
-        // Segment to PREVIOUS cell
-        if (i > 0) {
-          const prev = path.cells[i-1];
-          const prevPos = this.grid.getCellPosition(prev.f, prev.u, prev.v).add(this.grid.getFaceNormal(prev.f).multiplyScalar(surfaceOffset));
-          
-          if (c.f === prev.f) {
-            const dist = cellPos.distanceTo(prevPos);
-            const segGeo = new THREE.PlaneGeometry(ribbonW, dist);
-            const seg = new THREE.Mesh(segGeo, ribbonMat);
-            seg.position.copy(cellPos.clone().add(prevPos).multiplyScalar(0.5));
-            seg.quaternion.setFromRotationMatrix(new THREE.Matrix4().lookAt(cellPos, prevPos, this.grid.getFaceNormal(c.f)));
-            seg.rotateX(Math.PI/2);
-            seg.renderOrder = 60;
-            this.grid.group.add(seg);
-            path.meshes.push(seg);
-            path.meshesByCell[i].push(seg);
-
-            // SOVEREIGN SEGMENT LABEL (Printed on the straight ribbon)
+            // Ribbon Label
             const labelGeo = new THREE.CircleGeometry(ribbonW * 0.45, 32);
             const label = new THREE.Mesh(labelGeo, labelMat);
-            label.position.copy(seg.position).add(this.grid.getFaceNormal(c.f).multiplyScalar(0.001));
-            label.quaternion.copy(joint.quaternion); 
-            label.position.add(this.grid.getFaceNormal(c.f).multiplyScalar(0.001));
+            label.position.set(0, 0, 0.002);
             label.renderOrder = 75;
-            this.grid.group.add(label);
-            path.meshes.push(label); // Track for mesh removal
+            joint.add(label);
             path.ribbonLabels.push(label);
-          } else {
-            const n1 = this.grid.getFaceNormal(prev.f), n2 = this.grid.getFaceNormal(c.f);
-            const h = this.grid.halfExtents, h_off = h + surfaceOffset;
-            const eP = new THREE.Vector3();
-            if (n1.x !== 0) eP.x = h_off * n1.x; else if (n2.x !== 0) eP.x = h_off * n2.x; else eP.x = prevPos.x;
-            if (n1.y !== 0) eP.y = h_off * n1.y; else if (n2.y !== 0) eP.y = h_off * n2.y; else eP.y = prevPos.y;
-            if (n1.z !== 0) eP.z = h_off * n1.z; else if (n2.z !== 0) eP.z = h_off * n2.z; else eP.z = prevPos.z;
+        }
 
-            [ {p: prevPos, n: n1, target: eP}, {p: cellPos, n: n2, target: eP} ].forEach(set => {
-              const dist = set.p.distanceTo(set.target);
-              if (dist < 0.001) return;
-              const segGeo = new THREE.PlaneGeometry(ribbonW, dist);
-              const seg = new THREE.Mesh(segGeo, ribbonMat);
-              seg.position.copy(set.p.clone().add(set.target).multiplyScalar(0.5));
-              seg.quaternion.setFromRotationMatrix(new THREE.Matrix4().lookAt(set.p, set.target, set.n));
-              seg.rotateX(Math.PI/2);
-              seg.renderOrder = 60;
-              this.grid.group.add(seg);
-              path.meshes.push(seg);
-              path.meshesByCell[i].push(seg);
+        // Segment to PREVIOUS point
+        if (i > 0) {
+            const pPrev = points[i-1];
+            const pCurr = points[i];
+            const dist = pCurr.pos.distanceTo(pPrev.pos);
+            if (dist > 0.001) {
+                // SOVEREIGN ALIGNMENT: 
+                // 1. If we are moving from Center to Edge, use the Start Face Normal.
+                // 2. If we are moving from Edge to Center, use the End Face Normal.
+                const faceIdx = pPrev.isCenter ? path.cells[pPrev.cellIdx].f : path.cells[pCurr.cellIdx].f;
+                const normal = this.grid.getFaceNormal(faceIdx);
 
-              // SOVEREIGN WRAP LABEL (Printed on the corner-wrap segments)
-              const labelGeo = new THREE.CircleGeometry(ribbonW * 0.45, 32);
-              const label = new THREE.Mesh(labelGeo, labelMat);
-              label.position.copy(seg.position).add(set.n.clone().multiplyScalar(0.001));
-              label.lookAt(label.position.clone().add(set.n)); 
-              label.renderOrder = 75;
-              this.grid.group.add(label);
-              path.meshes.push(label);
-              path.ribbonLabels.push(label);
-            });
-          }
+                const segGeo = new THREE.PlaneGeometry(ribbonW, dist);
+                const seg = new THREE.Mesh(segGeo, ribbonMat);
+                seg.position.copy(pCurr.pos.clone().add(pPrev.pos).multiplyScalar(0.5));
+                
+                // FORCE PARALLELISM: Use the specific face normal for orientation
+                seg.quaternion.setFromRotationMatrix(new THREE.Matrix4().lookAt(pCurr.pos, pPrev.pos, normal));
+                seg.rotateX(Math.PI/2);
+                seg.renderOrder = 60;
+                this.grid.group.add(seg);
+                path.meshes.push(seg);
+                path.meshesByCell[cellIdx].push(seg);
+            }
         }
       }
       return; 
     }
 
-    // 3. PIPE MODE (Completed Paths)
-    const mat = new THREE.MeshPhysicalMaterial({ 
-      color: new THREE.Color(path.color),
-      emissive: new THREE.Color(path.color),
-      emissiveIntensity: 0.0,
-      roughness: this.grid.roughness, 
-      ior: this.grid.ior,
-      metalness: 0.0,
-      transmission: 0.0, 
-      transparent: false,
-      opacity: 1.0,
-      depthWrite: true,
-      side: THREE.FrontSide
-    });
-
-    const jointIndices = [];
-    for (let i = 0; i < path.cells.length; i++) {
-        path.meshesByCell[i] = [];
-        const c = path.cells[i];
-        const cellPos = this.grid.getCellPosition(c.f, c.u, c.v).add(this.grid.getFaceNormal(c.f).multiplyScalar(0.121));
-        let needsJoint = (i === 0 || i === path.cells.length - 1);
-        if (i > 0 && i < path.cells.length - 1) {
-            const prev = path.cells[i-1], next = path.cells[i+1];
-            if (prev.f !== c.f || next.f !== c.f) needsJoint = true;
-            else if ((prev.u !== next.u) && (prev.v !== next.v)) needsJoint = true;
-        }
-        if (needsJoint) {
-            jointIndices.push(i);
-            const joint = new THREE.Mesh(new THREE.SphereGeometry(this.grid.cellSize * pipeR, 24, 24), mat);
-            joint.position.copy(cellPos);
-            this.grid.group.add(joint);
-            path.meshes.push(joint);
-            path.meshesByCell[i].push(joint);
-        }
-        if (i === 0 || (i === path.cells.length - 1 && path.isCompleted)) {
-            const platePos = this.grid.getCellPosition(c.f, c.u, c.v);
-            const neckGeo = new THREE.CylinderGeometry(this.grid.cellSize * pipeR, this.grid.cellSize * pipeR, cellPos.distanceTo(platePos), 24);
-            neckGeo.rotateX(Math.PI / 2);
-            const neck = new THREE.Mesh(neckGeo, mat);
-            neck.position.copy(new THREE.Vector3().addVectors(cellPos, platePos).multiplyScalar(0.5));
-            neck.lookAt(cellPos);
-            this.grid.group.add(neck);
-            path.meshes.push(neck);
-            path.meshesByCell[i].push(neck);
-        }
-    }
-    for (let j = 1; j < jointIndices.length; j++) {
-        const startIdx = jointIndices[j-1], endIdx = jointIndices[j];
-        const pC = path.cells[startIdx], c = path.cells[endIdx];
-        const pP = this.grid.getCellPosition(pC.f, pC.u, pC.v).add(this.grid.getFaceNormal(pC.f).multiplyScalar(0.121));
-        const cellPos = this.grid.getCellPosition(c.f, c.u, c.v).add(this.grid.getFaceNormal(c.f).multiplyScalar(0.121));
-        if (c.f === pC.f) {
-            const geo = new THREE.CylinderGeometry(this.grid.cellSize * pipeR, this.grid.cellSize * pipeR, cellPos.distanceTo(pP), 24);
-            geo.rotateX(Math.PI / 2);
-            const seg = new THREE.Mesh(geo, mat);
-            seg.position.copy(new THREE.Vector3().addVectors(cellPos, pP).multiplyScalar(0.5));
-            seg.lookAt(cellPos);
-            this.grid.group.add(seg);
-            path.meshes.push(seg);
-            path.meshesByCell[endIdx].push(seg);
-        } else {
-            const n1 = this.grid.getFaceNormal(pC.f), n2 = this.grid.getFaceNormal(c.f);
-            const h = this.grid.halfExtents, eP = new THREE.Vector3(), offset = 0.121;
-            if (n1.x !== 0) eP.x = (h + offset) * n1.x; else if (n2.x !== 0) eP.x = (h + offset) * n2.x; else eP.x = pP.x;
-            if (n1.y !== 0) eP.y = (h + offset) * n1.y; else if (n2.y !== 0) eP.y = (h + offset) * n2.y; else eP.y = pP.y;
-            if (n1.z !== 0) eP.z = (h + offset) * n1.z; else if (n2.z !== 0) eP.z = (h + offset) * n2.z; else eP.z = pP.z;
-            const seg1Geo = new THREE.CylinderGeometry(this.grid.cellSize * pipeR, this.grid.cellSize * pipeR, pP.distanceTo(eP), 24), seg2Geo = new THREE.CylinderGeometry(this.grid.cellSize * pipeR, this.grid.cellSize * pipeR, cellPos.distanceTo(eP), 24);
-            seg1Geo.rotateX(Math.PI / 2); seg2Geo.rotateX(Math.PI / 2);
-            const seg1 = new THREE.Mesh(seg1Geo, mat), seg2 = new THREE.Mesh(seg2Geo, mat);
-            seg1.position.copy(pP.clone().add(eP).multiplyScalar(0.5)); seg1.lookAt(eP);
-            seg2.position.copy(cellPos.clone().add(eP).multiplyScalar(0.5)); seg2.lookAt(cellPos);
-            this.grid.group.add(seg1); this.grid.group.add(seg2);
-            path.meshes.push(seg1); path.meshes.push(seg2);
-            path.meshesByCell[endIdx].push(seg1); path.meshesByCell[endIdx].push(seg2);
-            const eJ = new THREE.Mesh(new THREE.SphereGeometry(this.grid.cellSize * pipeR, 24, 24), mat);
-            eJ.position.copy(eP);
-            this.grid.group.add(eJ);
-            path.meshes.push(eJ);
-            path.meshesByCell[endIdx].push(eJ);
-        }
-    }
-    // Final pass for all meshes in the path to ensure they are on top
-    path.meshes.forEach(m => m.renderOrder = 60);
+    // 2. PIPE MODE (Completed Paths)
+    const result = this.grid.createPathMeshes(path.cells, path.color);
+    path.meshes = result.meshes;
+    path.meshesByCell = result.meshesByCell;
   }
 
   setVictory(bool) {

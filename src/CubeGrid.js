@@ -148,6 +148,25 @@ export class CubeGrid {
     return this.cells.find(c => c.faceIndex === faceIndex && c.u === u && c.v === v);
   }
 
+  getCellPosition(f, u, v) {
+    const normal = this.getFaceNormal(f);
+    const uOffset = (u - this.size / 2 + 0.5) * this.cellSize;
+    const vOffset = (v - this.size / 2 + 0.5) * this.cellSize;
+    const pos = normal.clone().multiplyScalar(this.halfExtents); // EXACT FACE (0 OFFSET)
+
+    if (normal.z !== 0) {
+      pos.x = normal.z > 0 ? uOffset : -uOffset;
+      pos.y = vOffset;
+    } else if (normal.x !== 0) {
+      pos.z = normal.x > 0 ? -uOffset : uOffset;
+      pos.y = vOffset;
+    } else {
+      pos.x = uOffset;
+      pos.z = normal.y > 0 ? -vOffset : vOffset;
+    }
+    return pos;
+  }
+
   getFaceNormal(faceIndex) {
     const faces = [
       new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 0, -1), 
@@ -157,15 +176,38 @@ export class CubeGrid {
     return faces[faceIndex].clone();
   }
 
-  getCellPosition(faceIndex, u, v) {
-    const normal = this.getFaceNormal(faceIndex);
-    const uOffset = (u - this.size / 2 + 0.5) * this.cellSize;
-    const vOffset = (v - this.size / 2 + 0.5) * this.cellSize;
-    const pos = normal.clone().multiplyScalar(this.halfExtents);
-    if (normal.z !== 0) { pos.x = normal.z > 0 ? uOffset : -uOffset; pos.y = vOffset; }
-    else if (normal.x !== 0) { pos.z = normal.x > 0 ? -uOffset : uOffset; pos.y = vOffset; }
-    else { pos.x = uOffset; pos.z = normal.y > 0 ? -vOffset : vOffset; }
-    return pos;
+  getPathPoints(cells) {
+    const points = [];
+    if (cells.length === 0) return points;
+    const surfaceOffset = 0.01; // FLUSH BUT SAFE FOR CONDUITS
+
+    // Start point
+    points.push({ 
+        pos: this.getCellPosition(cells[0].f, cells[0].u, cells[0].v), 
+        cellIdx: 0,
+        isCenter: true 
+    });
+
+    for (let i = 0; i < cells.length - 1; i++) {
+        const cP = cells[i], cC = cells[i+1];
+        const pP = this.getCellPosition(cP.f, cP.u, cP.v);
+        const pC = this.getCellPosition(cC.f, cC.u, cC.v);
+
+        if (cP.f !== cC.f) {
+            // EDGE WRAP: Inject shared boundary midpoint
+            const n1 = this.getFaceNormal(cP.f), n2 = this.getFaceNormal(cC.f);
+            const h = this.halfExtents + surfaceOffset;
+            const edgePoint = new THREE.Vector3();
+            
+            if (n1.x !== 0) edgePoint.x = h * n1.x; else if (n2.x !== 0) edgePoint.x = h * n2.x; else edgePoint.x = pP.x;
+            if (n1.y !== 0) edgePoint.y = h * n1.y; else if (n2.y !== 0) edgePoint.y = h * n2.y; else edgePoint.y = pP.y;
+            if (n1.z !== 0) edgePoint.z = h * n1.z; else if (n2.z !== 0) edgePoint.z = h * n2.z; else edgePoint.z = pP.z;
+            
+            points.push({ pos: edgePoint, cellIdx: i + 1, isCenter: false });
+        }
+        points.push({ pos: pC, cellIdx: i + 1, isCenter: true });
+    }
+    return points;
   }
 
   addPlate(faceIndex, u, v, color) {
@@ -189,7 +231,7 @@ export class CubeGrid {
     });
     const plate = new THREE.Mesh(plateGeo, plateMat);
     // Cylinder by default is upright (along Y). Rotate it to match face normal.
-    plate.position.copy(pos).add(normal.clone().multiplyScalar(plateHeight / 2 + 0.001));
+    plate.position.copy(pos).add(normal.clone().multiplyScalar(plateHeight / 2));
     plate.up.copy(this.getFaceUp(faceIndex));
     plate.lookAt(plate.position.clone().add(normal));
     plate.rotateX(Math.PI / 2); // Orient cylinder cap to look at normal
@@ -292,6 +334,55 @@ export class CubeGrid {
     if (v === 0) neighbors.push(this.getCrossFaceNeighbor(f, 'bottom', u));
     if (v === this.size - 1) neighbors.push(this.getCrossFaceNeighbor(f, 'top', u));
     return neighbors.filter(n => n !== null);
+  }
+
+  createPathMeshes(cells, color) {
+    const result = { meshes: [], meshesByCell: {} };
+    if (cells.length < 2) return result;
+
+    const points = this.getPathPoints(cells);
+    const pipeR = 0.18;
+    const mat = new THREE.MeshPhysicalMaterial({
+        color: new THREE.Color(color),
+        roughness: 0.2, metalness: 0.1,
+        emissive: 0x000000, emissiveIntensity: 0.0, // ABSOLUTE GLOW PURGE
+        clearcoat: 0.0
+    });
+
+    const jointGeo = new THREE.SphereGeometry(pipeR, 12, 12);
+
+    for (let i = 0; i < points.length; i++) {
+        const p = points[i].pos;
+        const cellIdx = points[i].cellIdx;
+        
+        // Add Joint at every point
+        const joint = new THREE.Mesh(jointGeo, mat);
+        joint.position.copy(p);
+        joint.renderOrder = 60;
+        this.group.add(joint);
+        result.meshes.push(joint);
+        if (!result.meshesByCell[cellIdx]) result.meshesByCell[cellIdx] = [];
+        result.meshesByCell[cellIdx].push(joint);
+
+        // Add Segment to PREVIOUS point
+        if (i > 0) {
+            const pPrev = points[i-1].pos;
+            const dist = p.distanceTo(pPrev);
+            if (dist < 0.001) continue;
+
+            const geo = new THREE.CylinderGeometry(pipeR, pipeR, dist, 12);
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.copy(p).add(pPrev).multiplyScalar(0.5);
+            mesh.lookAt(p);
+            mesh.rotateX(Math.PI / 2);
+            mesh.renderOrder = 60;
+
+            this.group.add(mesh);
+            result.meshes.push(mesh);
+            result.meshesByCell[cellIdx].push(mesh);
+        }
+    }
+    return result;
   }
 
   getCrossFaceNeighbor(f, edge, index) {

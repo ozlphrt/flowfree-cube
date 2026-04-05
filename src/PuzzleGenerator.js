@@ -49,7 +49,7 @@ export class PuzzleGenerator {
             if (path) {
                 path.forEach(p => occupied.add(`${p.f},${p.u},${p.v}`));
                 allTerminals.push(candidate.start, candidate.end);
-                resultPairs.push({ color, label, points: [candidate.start, candidate.end] });
+                resultPairs.push({ color, label, points: [candidate.start, candidate.end], path: path });
                 colorIdx++;
                 attempts = 0; // Reset on success
             } else {
