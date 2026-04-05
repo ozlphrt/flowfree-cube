@@ -70,7 +70,9 @@ export class PuzzleGenerator {
 
     generatePuzzle();
     const actualOccupancy = occupied.size;
-    console.log(`Sovereign Generator v1.186.2: Level ${level} Generated in ${Date.now() - startTime}ms (Occupied: ${actualOccupancy} / Target: ${Math.floor(totalCells * targetDensity)})`);
+    console.log(`[SOVEREIGN GENERATOR] Level ${level}:`);
+    resultPairs.forEach((p, i) => console.log(`  Path ${i+1} (${p.color}): ${p.path.length} cells`));
+    console.log(`  Total Sovereign Occupancy: ${actualOccupancy}`);
     
     return { 
         pairs: resultPairs, 

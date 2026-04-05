@@ -120,16 +120,23 @@ export class GameController {
     
     // Count occupied cells
     let currentOccupied = 0;
-    // Plates (start/end)
-    currentOccupied += this.plates.length;
-    // Stubs
+    const plateCount = this.plates.length;
+    let stubBridge = 0;
+    let pathBridge = 0;
+
+    currentOccupied += plateCount;
     this.stubs.forEach(s => {
-        currentOccupied += Math.max(0, s.cells.length - 1); // Only count non-plate cells in stubs
+        const count = Math.max(0, s.cells.length - 1);
+        stubBridge += count;
+        currentOccupied += count;
     });
-    // Completed Paths
     this.completedPaths.forEach(p => {
-        currentOccupied += Math.max(0, p.cells.length - 2); // Only count bridge cells between plates
+        const count = Math.max(0, p.cells.length - 2);
+        pathBridge += count;
+        currentOccupied += count;
     });
+
+    console.log(`[SOVEREIGN AUDIT] Level State: ${plateCount} Plates | ${stubBridge} StubCells | ${pathBridge} PathCells = Total ${currentOccupied} (Target ${this.targetOccupiedCells})`);
 
     const remaining = this.targetOccupiedCells - currentOccupied;
     this.cellsDisplay.innerText = Math.abs(remaining);
