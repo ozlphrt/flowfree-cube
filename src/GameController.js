@@ -141,7 +141,7 @@ export class GameController {
         const circumference = 113.1; // 2 * pi * 18
         this.masteryRing.style.strokeDashoffset = circumference * (1 - percent);
 
-        // State Feedback: Traffic Light Progress
+        // State Feedback: Traffic Light Progress (Remaining Budget Logic)
         this.masteryContainer.classList.remove('mastery-perfect', 'mastery-over', 'mastery-low', 'mastery-mid', 'mastery-high');
         
         if (remaining === 0) {
@@ -152,16 +152,14 @@ export class GameController {
                 setTimeout(() => perfectLabel.classList.add('hidden'), 1000);
             }
         } else if (remaining < 0) {
-            this.masteryContainer.classList.add('mastery-over');
+            this.masteryContainer.classList.add('mastery-over'); // Inefficient Red
         } else {
-            // Incremental Progress Colors
-            const progress = currentOccupied / total;
-            if (progress < 0.4) {
-                this.masteryContainer.classList.add('mastery-low'); // Red
-            } else if (progress < 0.8) {
-                this.masteryContainer.classList.add('mastery-mid'); // Yellow
+            // "Budget" logic: Green at start, Yellow when tight
+            const budgetRemaining = remaining / total;
+            if (budgetRemaining > 0.25) {
+                this.masteryContainer.classList.add('mastery-high'); // Plenty left: Green
             } else {
-                this.masteryContainer.classList.add('mastery-high'); // Green
+                this.masteryContainer.classList.add('mastery-mid'); // Almost out: Yellow
             }
         }
     }
