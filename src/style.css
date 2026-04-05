@@ -220,8 +220,8 @@ body.dark-theme .hud-pill.clickable:hover {
 
 .cells-mastery-container {
   position: relative;
-  width: 36px;
-  height: 36px;
+  width: 42px;
+  height: 42px;
   display: flex;
   justify-content: center;
   align-items: center;

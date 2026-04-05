@@ -138,7 +138,7 @@ export class GameController {
     if (this.masteryRing && this.masteryContainer) {
         const total = this.targetOccupiedCells;
         const percent = Math.min(1.5, currentOccupied / total);
-        const circumference = 94.2; // 2 * pi * 15
+        const circumference = 113.1; // 2 * pi * 18
         this.masteryRing.style.strokeDashoffset = circumference * (1 - percent);
 
         // State Feedback
