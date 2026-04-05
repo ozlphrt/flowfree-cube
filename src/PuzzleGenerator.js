@@ -9,9 +9,13 @@ export class PuzzleGenerator {
     const targetDensity = (level < 35) ? 0.6 : 0.8; // Target 80% for high levels
     const colors = Object.values(COLORS);
     
-    // 1. Difficulty Curve Parameters
-    const forceFaceCrossingProb = level < 35 ? 0.3 : 0.95; // Hard-enforce corners for level 35+
-    const maxPathLen = Math.max(10, Math.floor(totalCells / 5)); // Allow winding paths
+    // 1. Difficulty Curve Parameters: Aggressive 3D First
+    let forceFaceCrossingProb = 0;
+    if (level >= 3 && level < 6) forceFaceCrossingProb = 0.5;
+    if (level >= 6) forceFaceCrossingProb = 0.95;
+
+    const minManhattanDist = (level < 3) ? 1 : (level < 10 ? grid.size + 1 : Math.floor(grid.size * 1.5));
+    const maxPathLen = Math.max(10, Math.floor(totalCells / 4)); 
 
     // 2. Recursive Generation State
     const occupied = new Set();
@@ -36,7 +40,11 @@ export class PuzzleGenerator {
             
             // Focus on long-distance corner-crossing candidates
             const bestCandidates = candidates.filter(can => {
-                if (level < 35) return true;
+                const dist = Math.abs(can.start.u - can.end.u) + Math.abs(can.start.v - can.end.v);
+                // Extra distance check for same-face vs cross-face logic is implicit in minManhattanDist
+                if (dist < minManhattanDist && can.start.f === can.end.f) return false;
+                
+                if (level < 3) return true;
                 const isSameFace = can.start.f === can.end.f;
                 return !isSameFace || rng.next() > forceFaceCrossingProb;
             });
@@ -102,8 +110,8 @@ export class PuzzleGenerator {
     visited.add(`${start.f},${start.u},${start.v}`);
 
     while (queue.length > 0) {
-        // Stochastic pull: instead of just shift(), occasionally pull from middle to create variability
-        const idx = (rng.next() < 0.4) ? Math.floor(rng.next() * queue.length) : 0;
+        // Sovereign Stochastic Pull: Higher chance (0.65) to divert from shortest path for complexity
+        const idx = (rng.next() < 0.65) ? Math.floor(rng.next() * queue.length) : 0;
         const path = queue.splice(idx, 1)[0];
         const current = path[path.length - 1];
 
