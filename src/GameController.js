@@ -25,6 +25,8 @@ export class GameController {
     this.lvlDisplay = document.getElementById('level-val');
     this.livesDisplay = document.getElementById('lives-val');
     this.cellsDisplay = document.getElementById('cells-val');
+    this.masteryContainer = document.querySelector('.cells-mastery-container');
+    this.masteryRing = document.getElementById('cells-progress');
     this.targetOccupiedCells = 0;
 
     // Load persisted lives or default to 3
@@ -129,9 +131,30 @@ export class GameController {
         currentOccupied += Math.max(0, p.cells.length - 2); // Only count bridge cells between plates
     });
 
-    const remaining = Math.max(0, this.targetOccupiedCells - currentOccupied);
-    this.cellsDisplay.innerText = remaining;
+    const remaining = this.targetOccupiedCells - currentOccupied;
+    this.cellsDisplay.innerText = Math.abs(remaining);
     
+    // Mastery Ring Animation
+    if (this.masteryRing && this.masteryContainer) {
+        const total = this.targetOccupiedCells;
+        const percent = Math.min(1.5, currentOccupied / total);
+        const circumference = 94.2; // 2 * pi * 15
+        this.masteryRing.style.strokeDashoffset = circumference * (1 - percent);
+
+        // State Feedback
+        this.masteryContainer.classList.remove('mastery-perfect', 'mastery-over');
+        if (remaining === 0) {
+            this.masteryContainer.classList.add('mastery-perfect');
+            const perfectLabel = document.getElementById('perfect-label');
+            if (perfectLabel) {
+                perfectLabel.classList.remove('hidden');
+                setTimeout(() => perfectLabel.classList.add('hidden'), 1000);
+            }
+        } else if (remaining < 0) {
+            this.masteryContainer.classList.add('mastery-over');
+        }
+    }
+
     // Aesthetic: Subtle pulse on change
     this.cellsDisplay.style.transform = 'scale(1.2)';
     setTimeout(() => { this.cellsDisplay.style.transform = 'scale(1)'; }, 100);
