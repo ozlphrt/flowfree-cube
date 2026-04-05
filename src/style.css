@@ -636,14 +636,14 @@ body.dark-theme .hud-pill.clickable:hover {
 }
 
 .hero-btn {
-    width: 88px !important;
-    height: 88px !important;
+    width: 74px !important;
+    height: 74px !important;
     background: var(--glass-bg);
-    box-shadow: 0 16px 64px rgba(0,0,0,0.4);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
 }
 
 body.dark-theme .hero-btn {
-    box-shadow: 0 12px 48px rgba(0,0,0,0.6), 0 0 20px rgba(255,255,255,0.05);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 15px rgba(255,255,255,0.03);
 }
 
 .hud-icon-btn svg {
