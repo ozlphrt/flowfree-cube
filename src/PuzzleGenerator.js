@@ -69,12 +69,12 @@ export class PuzzleGenerator {
     };
 
     generatePuzzle();
-    const targetOccupied = Math.floor(totalCells * targetDensity);
-    console.log(`Sovereign Generator v1.186.1: Level ${level} Generated in ${Date.now() - startTime}ms (Occupied: ${occupied.size} / Target: ${targetOccupied})`);
+    const actualOccupancy = occupied.size;
+    console.log(`Sovereign Generator v1.186.2: Level ${level} Generated in ${Date.now() - startTime}ms (Occupied: ${actualOccupancy} / Target: ${Math.floor(totalCells * targetDensity)})`);
     
     return { 
         pairs: resultPairs, 
-        targetOccupied: targetOccupied 
+        targetOccupied: actualOccupancy 
     };
   }
 
