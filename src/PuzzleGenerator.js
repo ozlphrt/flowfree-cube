@@ -69,14 +69,16 @@ export class PuzzleGenerator {
     };
 
     generatePuzzle();
-    const actualOccupancy = occupied.size;
+    const totalPlates = resultPairs.length * 2;
+    const bridgeCells = occupied.size - totalPlates;
+    
     console.log(`[SOVEREIGN GENERATOR] Level ${level}:`);
-    resultPairs.forEach((p, i) => console.log(`  Path ${i+1} (${p.color}): ${p.path.length} cells`));
-    console.log(`  Total Sovereign Occupancy: ${actualOccupancy}`);
+    resultPairs.forEach((p, i) => console.log(`  Path ${i+1} (${p.color}): ${p.path.length - 2} conduits`));
+    console.log(`  Sovereign Bridge Budget: ${bridgeCells} cells`);
     
     return { 
         pairs: resultPairs, 
-        targetOccupied: actualOccupancy 
+        targetOccupied: bridgeCells 
     };
   }
 

@@ -118,13 +118,13 @@ export class GameController {
   updateCellCounter() {
     if (!this.cellsDisplay) return;
     
-    // Count occupied cells
+    // COUNT CONDUITS (Bridge Cells only, excluding Terminal Plates)
     let currentOccupied = 0;
     const plateCount = this.plates.length;
     let stubBridge = 0;
     let pathBridge = 0;
 
-    currentOccupied += plateCount;
+    // We no longer add plateCount to currentOccupied
     this.stubs.forEach(s => {
         const count = Math.max(0, s.cells.length - 1);
         stubBridge += count;
@@ -136,7 +136,7 @@ export class GameController {
         currentOccupied += count;
     });
 
-    console.log(`[SOVEREIGN AUDIT] Level State: ${plateCount} Plates | ${stubBridge} StubCells | ${pathBridge} PathCells = Total ${currentOccupied} (Target ${this.targetOccupiedCells})`);
+    console.log(`[SOVEREIGN AUDIT] Conduits Only: ${stubBridge} StubCells | ${pathBridge} PathCells = Total ${currentOccupied} (AI Budget ${this.targetOccupiedCells})`);
 
     const remaining = this.targetOccupiedCells - currentOccupied;
     this.cellsDisplay.innerText = Math.abs(remaining);
