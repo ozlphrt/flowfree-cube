@@ -91,13 +91,32 @@ export class InteractionManager {
         });
     }
 
-    // SOVEREIGN UTILITY: Hook up the Wrench Pill
+    // SOVEREIGN UTILITY: Hook up the Wrench Pill with Confirmation Modal
     this.solveBtn = document.getElementById('solve-btn');
-    if (this.solveBtn) {
+    this.solveModal = document.getElementById('solve-modal');
+    this.solveConfirmBtn = document.getElementById('solve-confirm-btn');
+    this.solveCancelBtn = document.getElementById('solve-cancel-btn');
+
+    if (this.solveBtn && this.solveModal) {
         this.solveBtn.addEventListener('pointerdown', (e) => { 
             e.stopPropagation(); 
-            this.gameController.solveBoard(); 
+            this.solveModal.classList.remove('hidden');
         });
+
+        if (this.solveConfirmBtn) {
+            this.solveConfirmBtn.addEventListener('pointerdown', (e) => {
+                e.stopPropagation();
+                this.solveModal.classList.add('hidden');
+                this.gameController.solveBoard();
+            });
+        }
+
+        if (this.solveCancelBtn) {
+            this.solveCancelBtn.addEventListener('pointerdown', (e) => {
+                e.stopPropagation();
+                this.solveModal.classList.add('hidden');
+            });
+        }
     }
     canvas.addEventListener('pointerdown', this.onPointerDown.bind(this));
     window.addEventListener('pointermove', this.onPointerMove.bind(this));
