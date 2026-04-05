@@ -592,13 +592,13 @@ body.dark-theme .hud-pill.clickable:hover {
 /* HUD BOTTOM UI: Unified Design */
 #hud-bottom {
     position: absolute;
-    bottom: 30px;
+    bottom: 12px; /* DRASTICALLY REDUCED */
     left: 0;
     width: 100%;
     display: flex;
     justify-content: space-between;
     align-items: flex-end;
-    padding: 0 40px;
+    padding: 0 25px;
     pointer-events: none;
     z-index: 5000;
 }
@@ -635,10 +635,10 @@ body.dark-theme .hud-pill.clickable:hover {
 }
 
 .hero-btn {
-    width: 72px !important;
-    height: 72px !important;
+    width: 88px !important;
+    height: 88px !important;
     background: var(--glass-bg);
-    box-shadow: 0 12px 48px rgba(0,0,0,0.35);
+    box-shadow: 0 16px 64px rgba(0,0,0,0.4);
 }
 
 body.dark-theme .hero-btn {
@@ -652,8 +652,8 @@ body.dark-theme .hero-btn {
 }
 
 .hero-btn svg {
-    width: 46px !important;
-    height: 46px !important;
+    width: 60px !important;
+    height: 60px !important;
 }
 
 .hud-icon-btn:hover {
