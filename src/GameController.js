@@ -141,8 +141,9 @@ export class GameController {
         const circumference = 113.1; // 2 * pi * 18
         this.masteryRing.style.strokeDashoffset = circumference * (1 - percent);
 
-        // State Feedback
-        this.masteryContainer.classList.remove('mastery-perfect', 'mastery-over');
+        // State Feedback: Traffic Light Progress
+        this.masteryContainer.classList.remove('mastery-perfect', 'mastery-over', 'mastery-low', 'mastery-mid', 'mastery-high');
+        
         if (remaining === 0) {
             this.masteryContainer.classList.add('mastery-perfect');
             const perfectLabel = document.getElementById('perfect-label');
@@ -152,6 +153,16 @@ export class GameController {
             }
         } else if (remaining < 0) {
             this.masteryContainer.classList.add('mastery-over');
+        } else {
+            // Incremental Progress Colors
+            const progress = currentOccupied / total;
+            if (progress < 0.4) {
+                this.masteryContainer.classList.add('mastery-low'); // Red
+            } else if (progress < 0.8) {
+                this.masteryContainer.classList.add('mastery-mid'); // Yellow
+            } else {
+                this.masteryContainer.classList.add('mastery-high'); // Green
+            }
         }
     }
 
