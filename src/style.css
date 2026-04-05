@@ -250,12 +250,12 @@ body.dark-theme .hud-pill.clickable:hover {
 /* Mastery States */
 .mastery-perfect .ring-fg {
   stroke: var(--success);
-  filter: drop-shadow(0 0 5px var(--success));
+  filter: drop-shadow(0 0 8px rgba(52, 199, 89, 0.4));
 }
 
 .mastery-perfect .pill-value {
   color: var(--success);
-  text-shadow: 0 0 10px var(--success);
+  text-shadow: 0 0 8px rgba(52, 199, 89, 0.4);
 }
 
 .mastery-over .ring-fg {
