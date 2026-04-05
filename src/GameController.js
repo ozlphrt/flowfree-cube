@@ -118,25 +118,23 @@ export class GameController {
   updateCellCounter() {
     if (!this.cellsDisplay) return;
     
-    // COUNT CONDUITS (Bridge Cells only, excluding Terminal Plates)
+    // COUNT CONDUITS (Unified Logic: Count every cell that is NOT a terminal plate)
     let currentOccupied = 0;
-    const plateCount = this.plates.length;
-    let stubBridge = 0;
-    let pathBridge = 0;
-
-    // We no longer add plateCount to currentOccupied
-    this.stubs.forEach(s => {
-        const count = Math.max(0, s.cells.length - 1);
-        stubBridge += count;
-        currentOccupied += count;
-    });
-    this.completedPaths.forEach(p => {
-        const count = Math.max(0, p.cells.length - 2);
-        pathBridge += count;
-        currentOccupied += count;
+    const allPaths = [...this.stubs, ...this.completedPaths];
+    const uniqueCells = new Set();
+    
+    allPaths.forEach(path => {
+        path.cells.forEach(cell => {
+            const isPlate = this.plates.some(p => p.f === cell.f && p.u === cell.u && p.v === cell.v);
+            if (!isPlate) {
+                uniqueCells.add(`${cell.f},${cell.u},${cell.v}`);
+            }
+        });
     });
 
-    console.log(`[SOVEREIGN AUDIT] Conduits Only: ${stubBridge} StubCells | ${pathBridge} PathCells = Total ${currentOccupied} (AI Budget ${this.targetOccupiedCells})`);
+    currentOccupied = uniqueCells.size;
+
+    console.log(`[SOVEREIGN AUDIT] Unified Conduits: ${currentOccupied} (AI Budget ${this.targetOccupiedCells})`);
 
     const remaining = this.targetOccupiedCells - currentOccupied;
     this.cellsDisplay.innerText = Math.abs(remaining);
@@ -193,7 +191,7 @@ export class GameController {
 
   removeCompletedPath(path) {
     this.completedPaths = this.completedPaths.filter(p => p !== path);
-    if (this.stubs.indexOf(path) === -1) this.stubs.push(path);
+    if (!this.stubs.includes(path)) this.stubs.push(path);
     this.updateCellCounter();
     if (this.onUpdate) this.onUpdate();
   }
@@ -208,6 +206,8 @@ export class GameController {
     if (!this.completedPaths.includes(path)) {
       this.completedPaths.push(path);
       path.isCompleted = true;
+      // MUTUAL EXCLUSIVITY: Remove from stubs when completed
+      this.stubs = this.stubs.filter(s => s !== path);
     }
     this.stats = { completed: 0, total: 0 };
     this.updateCellCounter();
