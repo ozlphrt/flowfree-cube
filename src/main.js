@@ -14,7 +14,7 @@ registerSW({ onOfflineReady() {} });
 
 // VERSION CHECK - Reliable fetch-based update detection
 // This bypasses the service worker cache entirely.
-const CURRENT_VERSION = '1.187.19';
+const CURRENT_VERSION = '1.187.21';
 const VERSION_URL = '/flowfree-cube/version.json';
 
 async function checkForUpdate() {

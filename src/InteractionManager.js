@@ -273,39 +273,19 @@ export class InteractionManager {
     let vy = Math.max(-1, Math.min(1, dy / 250));
     this.currentDragVector.set(vx, vy);
     
-    let predictedNeighbor = null;
     let actualSpeed = 0; 
     if (this.activePath) {
-        const { f, u, v } = this.lastCell;
+        const { u, v } = this.lastCell;
         let shouldRotate = false;
         const pushThreshold = 0.15; 
-        
         if (this.lockedDragDir === 'x') {
-            if (u === 0 && vx < -pushThreshold) predictedNeighbor = this.grid.getCrossFaceNeighbor(f, 'left', v);
-            else if (u === this.grid.size-1 && vx > pushThreshold) predictedNeighbor = this.grid.getCrossFaceNeighbor(f, 'right', v);
+            if ((u === 0 && vx < -pushThreshold) || (u === this.grid.size-1 && vx > pushThreshold)) shouldRotate = true;
         } else if (this.lockedDragDir === 'y') {
-            if (v === 0 && vy < -pushThreshold) predictedNeighbor = this.grid.getCrossFaceNeighbor(f, 'bottom', u);
-            else if (v === this.grid.size-1 && vy > pushThreshold) predictedNeighbor = this.grid.getCrossFaceNeighbor(f, 'top', u);
+            if ((v === 0 && vy < -pushThreshold) || (v === this.grid.size-1 && vy > pushThreshold)) shouldRotate = true;
         }
-
-        if (predictedNeighbor) {
-            // SOVEREIGN INTELLIGENCE: Is the target face visible enough?
-            const nextNormal = this.grid.getFaceNormal(predictedNeighbor.f).applyQuaternion(this.grid.group.quaternion);
-            const camToGrid = new THREE.Vector3().subVectors(this.camera.position, this.grid.group.position).normalize();
-            const dot = nextNormal.dot(camToGrid);
-            
-            if (dot < 0.25) {
-                // HIDDEN: Apply strong nudge
-                actualSpeed = -0.4; 
-                shouldRotate = true;
-            } else {
-                // VISIBLE: Just gentle resistance nudge
-                actualSpeed = -0.15;
-                shouldRotate = true;
-            }
-        }
+        actualSpeed = shouldRotate ? -0.15 : 0; 
     } else {
-        actualSpeed = 1.5; // INCREASED FREE ROTATION SPEED
+        actualSpeed = 1.5; 
     }
     
     if (this.activePath) {
@@ -379,18 +359,12 @@ export class InteractionManager {
     }
 
     if (this.lockedLocalAxis !== null) {
-        if (this.activePath && predictedNeighbor) {
-            // SOVEREIGN DRIFT: Rotate while at edge based on drag displacement (push force)
-            // This ensures the cube rotates even when the pointer is stationary at the edge.
-            const driftDelta = (this.lockedDragDir === 'x' ? vx : -vy * 1.5);
-            this.targetRotationVelocity = driftDelta * actualSpeed * this.sensitivityFactor;
-        } else {
-            // STANDARD ROTATION: Swipe-based velocity (Delta-based)
-            const deltaX = this.pointer.x - this.lastPointer.x;
-            const deltaY = this.pointer.y - this.lastPointer.y;
-            const delta = (this.lockedDragDir === 'x' ? deltaX : -deltaY * 1.5);
-            this.targetRotationVelocity = delta * actualSpeed * this.sensitivityFactor; 
-        }
+        // STANDARD ROTATION: Swipe-based velocity (Delta-based)
+        const deltaX = this.pointer.x - this.lastPointer.x;
+        const deltaY = this.pointer.y - this.lastPointer.y;
+        const delta = (this.lockedDragDir === 'x' ? deltaX : -deltaY * 1.5);
+        this.targetRotationVelocity = delta * actualSpeed * this.sensitivityFactor; 
+        
         if (window.requestSovereignFrame) window.requestSovereignFrame();
     }
     
