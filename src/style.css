@@ -463,6 +463,19 @@ body.dark-theme .hud-pill.clickable:hover {
   pointer-events: none;
 }
 
+/* Top HUD modals: Below the top HUD bar (Solve and Level Jump) */
+#solve-modal, #level-modal {
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 80px;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+#solve-modal.hidden .modal-content, 
+#level-modal.hidden .modal-content {
+  transform: translateY(-40px);
+}
+
 .vertical-modal {
   flex-direction: column !important;
   border-radius: 24px !important;
