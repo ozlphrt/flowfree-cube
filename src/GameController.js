@@ -170,15 +170,15 @@ export class GameController {
                 perfectLabel.classList.remove('hidden');
                 setTimeout(() => perfectLabel.classList.add('hidden'), 1000);
             }
-        } else if (remaining < 0) {
-            this.masteryContainer.classList.add('mastery-over'); // Inefficient Red
+        } else if (remaining > 0) {
+            // "Budget" logic: Pure green as long as we have conduits left
+            this.masteryContainer.classList.add('mastery-high'); 
         } else {
-            // "Budget" logic: Green at start, Yellow when tight
-            const budgetRemaining = remaining / total;
-            if (budgetRemaining > 0.25) {
-                this.masteryContainer.classList.add('mastery-high'); // Plenty left: Green
+            // Detour logic: Yellow for minor (-3), Red for major
+            if (remaining >= -3) {
+                this.masteryContainer.classList.add('mastery-mid'); // Yellow
             } else {
-                this.masteryContainer.classList.add('mastery-mid'); // Almost out: Yellow
+                this.masteryContainer.classList.add('mastery-over'); // Red
             }
         }
     }
