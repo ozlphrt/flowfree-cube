@@ -265,14 +265,15 @@ export class GameController {
   }
 
   showMasteryPopup(val) {
-    if (!this.masteryContainer) return;
+    if (!this.masteryContainer || !this.masteryContainer.parentElement) return;
     
     const popup = document.createElement('div');
     const isPos = val > 0;
     popup.className = `mastery-popup animate ${isPos ? 'positive' : 'negative'}`;
     popup.innerText = (isPos ? '+' : '') + val;
     
-    this.masteryContainer.appendChild(popup);
+    // Append to the entire pill so it can fly across children
+    this.masteryContainer.parentElement.appendChild(popup);
     
     // Auto-cleanup
     setTimeout(() => popup.remove(), 1500);
