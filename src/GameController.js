@@ -272,6 +272,10 @@ export class GameController {
     popup.className = `mastery-popup animate ${isPos ? 'positive' : 'negative'}`;
     popup.innerText = (isPos ? '+' : '') + val;
     
+    // DYNAMIC POSITIONING: Align perfectly with the center of the dial
+    const startX = this.masteryContainer.offsetLeft + (this.masteryContainer.offsetWidth / 2);
+    popup.style.left = `${startX}px`;
+    
     // Append to the entire pill so it can fly across children
     this.masteryContainer.parentElement.appendChild(popup);
     

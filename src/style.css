@@ -315,7 +315,6 @@ body.dark-theme .hud-pill.clickable:hover {
 .mastery-popup {
   position: absolute;
   top: 24px;   /* Vertical center of the 48px high pill */
-  left: 27px;  /* Dial center (6px left-padding + 21px half-width) */
   transform: translate(-50%, -50%);
   font-weight: 950;
   font-size: 1.6rem;
