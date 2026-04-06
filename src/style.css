@@ -7,6 +7,10 @@
   --accent: #007aff;
   --success: #34c759;
   --bg-grid: rgba(0, 0, 0, 0.02); /* GRID COLOR FOR LIGHT THEME */
+  --modal-bg: rgba(255, 255, 255, 0.9); /* SOVEREIGN LIGHT MODAL */
+  --modal-text: #111;
+  --btn-sec-bg: rgba(0, 0, 0, 0.08); /* SOVEREIGN LIGHT BUTTON */
+  --btn-sec-text: #111;
   font-family: 'Outfit', 'Inter', system-ui, -apple-system, sans-serif;
 }
 
@@ -16,6 +20,10 @@ body.dark-theme {
   --glass-bg: rgba(255, 255, 255, 0.15); 
   --glass-border: rgba(255, 255, 255, 0.2);
   --glass-shadow: 0 10px 40px rgba(0,0,0,0.6);
+  --modal-bg: rgba(10, 10, 10, 0.9); /* SOVEREIGN DARK MODAL */
+  --modal-text: #eee;
+  --btn-sec-bg: rgba(255, 255, 255, 0.15); /* SOVEREIGN DARK BUTTON */
+  --btn-sec-text: #eee;
   background: none !important;
 }
 
@@ -500,7 +508,7 @@ body.dark-theme .hud-pill.clickable:hover {
   padding: 15px;
   font-size: 2.5rem;
   font-weight: 900;
-  color: #fff;
+  color: var(--modal-text);
   text-align: center;
   width: 100%;
   outline: none;
@@ -525,7 +533,7 @@ body.dark-theme .hud-pill.clickable:hover {
   padding: 4px 0;
 }
 
-.v-row span { opacity: 0.5; font-weight: 700; letter-spacing: 1px; }
+.v-row span { opacity: 0.5; font-weight: 700; letter-spacing: 1px; color: var(--modal-text); }
 .v-row code { font-family: monospace; color: var(--success); }
 
 .modal-actions {
@@ -548,15 +556,15 @@ body.dark-theme .hud-pill.clickable:hover {
 }
 
 .primary-btn { background: var(--success); color: #000; }
-.secondary-btn { background: rgba(255, 255, 255, 0.15); color: #fff; }
+.secondary-btn { background: var(--btn-sec-bg); color: var(--btn-sec-text); }
 
 .modal-actions button:hover { transform: scale(1.03); opacity: 0.9; }
 
 .modal-content {
-  background: rgba(0,0,0,0.85); /* HIGH-CONTRAST DARKNESS FOR LIGHT THEME */
+  background: var(--modal-bg); 
   -webkit-backdrop-filter: blur(40px);
   backdrop-filter: blur(40px);
-  border: 1px solid rgba(255,255,255,0.2);
+  border: 1px solid var(--glass-border);
   border-radius: 999px;
   padding: 8px 12px 8px 24px;
   display: flex;
@@ -587,7 +595,7 @@ body.dark-theme .hud-pill.clickable:hover {
 }
 
 .modal h2 {
-  color: #fff;
+  color: var(--modal-text);
   font-size: 0.8rem;
   letter-spacing: 3px;
   font-weight: 900;
@@ -596,12 +604,7 @@ body.dark-theme .hud-pill.clickable:hover {
   animation: victory-text-pulse 2s infinite ease-in-out;
 }
 
-/* FIX: Light theme text visibility on mobile */
-@media (max-width: 768px) {
-  body:not(.dark-theme) .modal-content h2 {
-    color: #000 !important;
-  }
-}
+/* REMOVED BUGGY MOBILE OVERRIDE */
 
 #next-level-btn {
   background: var(--success) !important; /* FORCE GREEN COLOR */

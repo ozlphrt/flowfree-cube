@@ -17,6 +17,12 @@ export class CubeGrid {
     this.ior = 1.62;
     this.labelMeshes = []; // Restored for Compass Alignment
     
+    // EXTREME ECO: PRE-ALLOCATED MATH POOL
+    this._v1 = new THREE.Vector3();
+    this._v2 = new THREE.Vector3();
+    this._q1 = new THREE.Quaternion();
+    this._frameCount = 0;
+
     this.initVisuals();
     this.scene.add(this.group);
   }
@@ -250,7 +256,7 @@ export class CubeGrid {
     this.group.add(plate);
 
     // 2. Translucent Label - PURE WHITE OUTLINES (Smaller for better margins)
-    const labelGeo = new THREE.CircleGeometry(this.cellSize * 0.22, 32);
+    const labelGeo = new THREE.CircleGeometry(this.cellSize * 0.19, 32); // SOVEREIGN REFINEMENT: SMALLER FOR DOUBLE DIGITS
     const labelMat = this.isEco ? new THREE.MeshStandardMaterial({
         color: 0xffffff,
         emissive: 0xffffff,
@@ -307,33 +313,38 @@ export class CubeGrid {
     });
 
     // 2. SOVEREIGN COMPASS LABELS (GREEN-AXIS CONSTRAINED)
-    this.labelMeshes.forEach(label => {
-        if (!label.parent) return; 
-        
-        // 1. Get the world Normal vector (Green Axis)
-        const worldNormal = new THREE.Vector3(0, 1, 0)
-            .applyQuaternion(label.parent.quaternion)
-            .applyQuaternion(this.group.quaternion);
+    this._frameCount++;
+    const shouldUpdateCompass = !this.isEco || (this._frameCount % 3 === 0);
+    
+    if (shouldUpdateCompass) {
+        this.labelMeshes.forEach(label => {
+            if (!label.parent) return; 
             
-        // 2. Project world UP onto the face plane
-        const projectedUp = worldUp.clone().projectOnPlane(worldNormal).normalize();
-        
-        // 3. Skip stability-risky angles (top/bottom)
-        if (Math.abs(worldNormal.y) < 0.95 && projectedUp.length() > 0.1) {
-            // Get label's current world orientation 
-            const labelWorldQuat = label.getWorldQuaternion(new THREE.Quaternion());
-            const invLabelWorldQuat = labelWorldQuat.clone().invert();
+            // 1. Get the world Normal vector (Green Axis)
+            const worldNormal = this._v1.set(0, 1, 0)
+                .applyQuaternion(label.parent.quaternion)
+                .applyQuaternion(this.group.quaternion);
+                
+            // 2. Project world UP onto the face plane
+            const projectedUp = this._v2.set(0, 1, 0).projectOnPlane(worldNormal).normalize();
             
-            // Project world UP into label local space
-            const localUpAtTarget = projectedUp.clone().applyQuaternion(invLabelWorldQuat);
-            
-            // 4. Calculate the angle required to point local UP (Y) to world UP
-            const angleDelta = Math.atan2(localUpAtTarget.x, localUpAtTarget.y);
-            
-            // 5. SOVEREIGN SETTLE: Damped compass drift (0.05 for stability)
-            label.rotation.z -= angleDelta * 0.05; 
-        }
-    });
+            // 3. Skip stability-risky angles (top/bottom)
+            if (Math.abs(worldNormal.y) < 0.95 && projectedUp.length() > 0.1) {
+                // Get label's current world orientation 
+                label.getWorldQuaternion(this._q1);
+                const invLabelWorldQuat = this._q1.invert();
+                
+                // Project world UP into label local space
+                const localUpAtTarget = projectedUp.applyQuaternion(invLabelWorldQuat);
+                
+                // 4. Calculate the angle required to point local UP (Y) to world UP
+                const angleDelta = Math.atan2(localUpAtTarget.x, localUpAtTarget.y);
+                
+                // 5. SOVEREIGN SETTLE: Damped compass drift (0.05 for stability)
+                label.rotation.z -= angleDelta * 0.05; 
+            }
+        });
+    }
   }
 
   // Helper to remove ribbon-specific labels from focus/compass
@@ -361,14 +372,17 @@ export class CubeGrid {
     if (cells.length < 2) return result;
 
     const points = this.getPathPoints(cells);
-    const pipeR = 0.18;
+    const pipeR = 0.22; // SOVEREIGN BOOST: CHUNKIER PIPES
     const pipeColor = new THREE.Color(color); // FULL BRIGHTNESS 1.0
     const mat = new THREE.MeshPhysicalMaterial({
         color: pipeColor,
         emissive: pipeColor,
-        emissiveIntensity: 0.2,
-        roughness: 0.2, metalness: 0.1,
-        clearcoat: 0.0
+        emissiveIntensity: 0.0, // SOVEREIGN FIX: DISABLE WASH OUT TO RECOVER 3D SHADING
+        roughness: 0.1, 
+        metalness: 0.1,      // SOVEREIGN BOOST: SHARPER HIGHLIGHTS
+        clearcoat: 1.0,      // SOVEREIGN: SHINY PLASTIC SHELL
+        clearcoatRoughness: 0.05,
+        reflectivity: 0.5
     });
 
     if (this.isEco) {
@@ -400,7 +414,7 @@ export class CubeGrid {
         });
 
         const jointGeo = new THREE.CircleGeometry(ribbonW / 2, 32); 
-        const labelGeo = new THREE.CircleGeometry(ribbonW * 0.45, 32);
+        const labelGeo = new THREE.CircleGeometry(ribbonW * 0.40, 32); // SOVEREIGN REFINEMENT: SMALLER FOR DOUBLE DIGITS
         const segGeo = new THREE.PlaneGeometry(ribbonW, 1); 
 
         for (let i = 0; i < points.length; i++) {
@@ -455,7 +469,7 @@ export class CubeGrid {
     }
 
     // 3D PIPE MODE (Standard)
-    const segments = 12;
+    const segments = 16; // SOVEREIGN SMOOTHNESS
     const jointGeo = new THREE.SphereGeometry(pipeR, segments, segments);
 
     for (let i = 0; i < points.length; i++) {

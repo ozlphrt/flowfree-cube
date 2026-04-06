@@ -163,6 +163,11 @@ const pointLight2 = new THREE.PointLight(0xffffff, 1.0); // 1.0x FILL LIGHT
 pointLight2.position.set(-20, -10, -20);
 scene.add(pointLight2);
 
+// SOVEREIGN MASTER LIGHT: Provides 3D sculpting and highlights
+const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+dirLight.position.set(10, 20, 10);
+scene.add(dirLight);
+
 // 3. Game Components
 const grid = new CubeGrid(scene, 5);
 const gameController = new GameController(grid);
@@ -196,8 +201,12 @@ function applySettings(settings) {
         renderer.setSize(window.innerWidth, window.innerHeight);
     }
 
-    // B. ENVIRONMENT PURGE (Extreme Eco)
-    scene.environment = isEco ? null : fullEnvironment;
+    // B. ENVIRONMENT & LIGHT PURGE (Extreme Eco)
+    scene.environment = isEco ? null : (window.fullEnvironment || null);
+    pointLight1.visible = !isEco;
+    pointLight2.visible = !isEco;
+    dirLight.visible = !isEco; // SOVEREIGN 3D DEPTH: TOGGLE MASTER LIGHT
+    ambientLight.intensity = isEco ? 1.5 : 0.8; 
 
     if (isEco) {
         // FLAT PERFORMANCE SETTINGS
@@ -206,7 +215,7 @@ function applySettings(settings) {
             grid.coreMat.metalness = 0.0;
             grid.coreMat.clearcoat = 0.0;
             grid.coreMat.transmission = 0.0; // BATTERY WIN: DISABLE REFRACTION
-            grid.coreMat.opacity = settings.darkMode ? 0.80 : 0.60; // SOVEREIGN BOOST: MORE OPAQUE
+            grid.coreMat.opacity = settings.darkMode ? 0.70 : 0.60; // SOVEREIGN REFINEMENT: SLIGHTLY MORE TRANSLUCENT
             grid.coreMat.color.set(0xffffff); // PURE WHITE IN BOTH THEMES
             grid.coreMat.emissive.set(0xffffff); // SOVEREIGN GLOW: PREVENT DARKNESS
             grid.coreMat.emissiveIntensity = settings.darkMode ? 0.05 : 0.25; // BRIGHTER IN LIGHT THEME
@@ -229,7 +238,7 @@ function applySettings(settings) {
     if (settings.darkMode) {
         backgroundManager.setTheme('dark');
         renderer.toneMappingExposure = 0.7;
-        scene.environmentIntensity = 0.6;
+        scene.environmentIntensity = isEco ? 0.0 : 1.5; // SOVEREIGN BOOST: SHINY REFLECTIONS
         ambientLight.intensity = 0.8;
         
         if (!isEco) {
@@ -246,8 +255,8 @@ function applySettings(settings) {
         }
     } else {
         backgroundManager.setTheme('light');
-        renderer.toneMappingExposure = 0.9;
-        scene.environmentIntensity = 0.6;
+        renderer.toneMappingExposure = 0.95; // SOVEREIGN BOOST: VIBRANT REFLECTIONS
+        scene.environmentIntensity = isEco ? 0.0 : 1.5; // SOVEREIGN BOOST: SHINY REFLECTIONS
         ambientLight.intensity = 0.0;
         
         if (!isEco) {

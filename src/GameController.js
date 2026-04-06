@@ -376,19 +376,27 @@ export class GameController {
                 cells: item.path,
                 color: item.color,
                 label: item.label, // SOVEREIGN FIX: PASSING THE ACTUAL LABEL
-                isCompleted: true
+                isCompleted: true,
+                meshes: [],
+                meshesByCell: {}
             };
 
-            const { meshes, meshesByCell } = this.grid.createPathMeshes(pathObj.cells, pathObj.color, pathObj.label);
-            const pipeR = 0.18;
+            const points = this.grid.getPathPoints(pathObj.cells); // SOVEREIGN FIX: DEFINE POINTS FOR TRACING
+            const pipeR = 0.22; // SOVEREIGN SYNC: MATCH CHUNKY PIPES
+            const segments = 16; // SOVEREIGN SYNC: MATCH SMOOTHNESS
             const mat = new THREE.MeshPhysicalMaterial({
                 color: new THREE.Color(item.color),
-                roughness: 0.2, metalness: 0.1,
-                emissive: 0x000000, emissiveIntensity: 0.0, // ABSOLUTE GLOW PURGE
-                clearcoat: 0.0
+                roughness: 0.1, 
+                metalness: 0.1, 
+                clearcoat: 1.0,
+                clearcoatRoughness: 0.05,
+                reflectivity: 0.5,
+                emissive: 0x000000, 
+                emissiveIntensity: 0.0 
             });
 
-            const jointGeo = new THREE.SphereGeometry(pipeR, 12, 12);
+            const jointGeo = new THREE.SphereGeometry(pipeR, segments, segments);
+            const cylinderGeoBase = new THREE.CylinderGeometry(pipeR, pipeR, 1, segments);
 
             this.addCompletedPath(pathObj);
 
@@ -411,14 +419,15 @@ export class GameController {
                     const pPrev = points[i-1].pos;
                     const dist = p.distanceTo(pPrev);
                     if (dist > 0.001) {
-                        const geo = new THREE.CylinderGeometry(pipeR, pipeR, dist, 12);
-                        const mesh = new THREE.Mesh(geo, mat);
+                        const mesh = new THREE.Mesh(cylinderGeoBase, mat);
+                        mesh.scale.y = dist;
                         mesh.position.copy(p).add(pPrev).multiplyScalar(0.5);
                         mesh.lookAt(p);
                         mesh.rotateX(Math.PI / 2);
                         mesh.renderOrder = 60;
                         this.grid.group.add(mesh);
                         pathObj.meshes.push(mesh);
+                        if (!pathObj.meshesByCell[cellIdx]) pathObj.meshesByCell[cellIdx] = [];
                         pathObj.meshesByCell[cellIdx].push(mesh);
                     }
                 }

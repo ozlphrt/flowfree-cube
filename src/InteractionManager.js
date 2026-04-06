@@ -542,16 +542,37 @@ export class InteractionManager {
     // 1. RIBBON MODE (Tactical Active Draw)
     if (isActive) {
       const litColor = new THREE.Color(path.color); // FULL BRIGHTNESS 1.0
-      const ribbonMat = new THREE.MeshStandardMaterial({ 
-        color: litColor,
-        emissive: litColor,
-        emissiveIntensity: 0.70, // SOVEREIGN SYNC: MATCH PLATES
-        roughness: 0.3,
-        transparent: false, // OPAQUE FOR CORRECT CUBE OCCLUSION
-        opacity: 1.0, 
-        side: THREE.DoubleSide, 
-        depthWrite: true
-      });
+      
+      let ribbonMat;
+      if (this.grid.isEco) {
+          // ECO MODE: BATTERY-AWARE MATTE
+          ribbonMat = new THREE.MeshStandardMaterial({ 
+            color: litColor,
+            emissive: litColor,
+            emissiveIntensity: 0.70, // SOVEREIGN SYNC: MATCH PLATES
+            roughness: 0.3,
+            transparent: false, // OPAQUE FOR CORRECT CUBE OCCLUSION
+            opacity: 1.0, 
+            side: THREE.DoubleSide, 
+            depthWrite: true
+          });
+      } else {
+          // NORMAL MODE: SOVEREIGN SHINY PLASTIC
+          ribbonMat = new THREE.MeshPhysicalMaterial({
+            color: litColor,
+            emissive: litColor,
+            emissiveIntensity: 0.3,
+            roughness: 0.1,
+            metalness: 0.1,
+            clearcoat: 1.0,
+            clearcoatRoughness: 0.05,
+            reflectivity: 0.5,
+            transparent: false,
+            opacity: 1.0,
+            side: THREE.DoubleSide,
+            depthWrite: true
+          });
+      }
 
       const labelTexture = TextureHelper.createLabeledTexture(path.color, path.label);
       const labelMat = new THREE.MeshStandardMaterial({
@@ -562,7 +583,7 @@ export class InteractionManager {
           depthWrite: false, 
           side: THREE.DoubleSide,
           emissive: 0xffffff,
-          emissiveIntensity: 0.8 // BRILLIANT WHITE
+          emissiveIntensity: 0.60 
       });
 
       // Draw Joint Circles and Segment Planes
@@ -585,7 +606,7 @@ export class InteractionManager {
             path.meshesByCell[cellIdx].push(joint);
 
             // SOVEREIGN REAL-TIME LABELS: Add number while drawing
-            const labelGeo = new THREE.CircleGeometry(ribbonW * 0.45, 32);
+            const labelGeo = new THREE.CircleGeometry(ribbonW * 0.40, 32); // SOVEREIGN REFINEMENT: SMALLER FOR DOUBLE DIGITS
             const labelMesh = new THREE.Mesh(labelGeo, labelMat);
             labelMesh.position.copy(joint.position).add(normal.clone().multiplyScalar(0.001));
             labelMesh.lookAt(labelMesh.position.clone().add(normal));
@@ -595,15 +616,12 @@ export class InteractionManager {
             path.meshesByCell[cellIdx].push(labelMesh);
         }
 
-        // Segment to PREVIOUS point
+        // Segment to previous
         if (i > 0) {
             const pPrev = points[i-1];
             const pCurr = points[i];
             const dist = pCurr.pos.distanceTo(pPrev.pos);
             if (dist > 0.001) {
-                // SOVEREIGN ALIGNMENT: 
-                // 1. If we are moving from Center to Edge, use the Start Face Normal.
-                // 2. If we are moving from Edge to Center, use the End Face Normal.
                 const faceIdx = pPrev.isCenter ? path.cells[pPrev.cellIdx].f : path.cells[pCurr.cellIdx].f;
                 const segNormal = this.grid.getFaceNormal(faceIdx);
 
