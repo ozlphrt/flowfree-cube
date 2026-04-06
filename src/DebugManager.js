@@ -96,6 +96,33 @@ export class DebugManager {
         themeRow.appendChild(themeBtn);
         this.panel.appendChild(themeRow);
 
+        // Reset Total Mastery Section
+        const resetRow = document.createElement('div');
+        resetRow.className = 'debug-row';
+        const resetBtn = document.createElement('button');
+        resetBtn.innerText = 'RESET TOTAL MASTERY SCORE';
+        resetBtn.style.width = '100%';
+        resetBtn.style.padding = '8px';
+        resetBtn.style.background = 'rgba(255, 59, 48, 0.2)';
+        resetBtn.style.color = '#ff3b30';
+        resetBtn.style.border = '1px solid #ff3b30';
+        resetBtn.style.cursor = 'pointer';
+        resetBtn.style.marginTop = '10px';
+        resetBtn.style.fontWeight = 'bold';
+        
+        resetBtn.onclick = () => {
+            if (confirm('Reset TOTAL Mastery Score to 0? This cannot be undone.')) {
+                localStorage.setItem('sovereign_total_mastery', '0');
+                this.gameController.totalMastery = 0;
+                if (this.gameController.scoreDisplay) {
+                    this.gameController.scoreDisplay.innerText = '0';
+                }
+                console.log('Sovereign Debug: Total Mastery Score Reset.');
+            }
+        };
+        resetRow.appendChild(resetBtn);
+        this.panel.appendChild(resetRow);
+
         const controls = [
             { id: 'ambient', label: 'Ambient', min: 0, max: 2, step: 0.1, val: ambient?.intensity || 0, cb: (v) => { if (ambient) ambient.intensity = v; } },
             { id: 'env', label: 'Env Intensity', min: 0, max: 5, step: 0.1, val: this.scene.environmentIntensity, cb: (v) => { this.scene.environmentIntensity = v; } },
