@@ -14,7 +14,7 @@ registerSW({ onOfflineReady() {} });
 
 // VERSION CHECK - Reliable fetch-based update detection
 // This bypasses the service worker cache entirely.
-const CURRENT_VERSION = '1.191.0'; // SOVEREIGN ENGINE SYNC
+const CURRENT_VERSION = '1.192.0'; // SOVEREIGN ENGINE SYNC
 const VERSION_URL = '/flowfree-cube/version.json';
 
 async function checkForUpdate() {
@@ -171,7 +171,7 @@ scene.add(dirLight);
 // 3. Game Components (Wait for Font for correct Label Rendering)
 let grid, gameController, interactionManager, backgroundManager, debugManager;
 
-document.fonts.ready.then(() => {
+document.fonts.load('900 100px "Lexend"').then(() => {
     grid = new CubeGrid(scene, 5);
     gameController = new GameController(grid);
     window.gameController = gameController;

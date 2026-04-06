@@ -4,7 +4,8 @@ export class TextureHelper {
   static labelCache = new Map();
 
   static createLabeledTexture(colorHex, label) {
-    const key = `${colorHex}_${label}`;
+    const fontRef = 'Lexend_v2'; // CACHE BUST FOR CONSISTENCY
+    const key = `${colorHex}_${label}_${fontRef}`;
     if (this.labelCache.has(key)) return this.labelCache.get(key);
 
     const canvas = document.createElement('canvas');
@@ -31,6 +32,19 @@ export class TextureHelper {
     // Main White Fill
     ctx.fillStyle = textColor;
     ctx.fillText(label, 256, 256);
+
+    // SOVEREIGN REFINEMENT: MANUAL CROSSBAR FOR DIGIT 7 (High Legibility)
+    if (label.toString().includes('7')) {
+        ctx.strokeStyle = textColor;
+        ctx.lineWidth = 30;
+        ctx.lineCap = 'round';
+        
+        // Find center of '7' - roughly (X: 230-290, Y: 240)
+        ctx.beginPath();
+        ctx.moveTo(215, 255);
+        ctx.lineTo(295, 255);
+        ctx.stroke();
+    }
 
     const texture = new THREE.CanvasTexture(canvas);
     texture.name = `label_${label}`;
