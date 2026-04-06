@@ -273,13 +273,13 @@ export class InteractionManager {
     let vy = Math.max(-1, Math.min(1, dy / 250));
     this.currentDragVector.set(vx, vy);
     
+    let predictedNeighbor = null;
     let actualSpeed = 0; 
     if (this.activePath) {
         const { f, u, v } = this.lastCell;
         let shouldRotate = false;
         const pushThreshold = 0.15; 
         
-        let predictedNeighbor = null;
         if (this.lockedDragDir === 'x') {
             if (u === 0 && vx < -pushThreshold) predictedNeighbor = this.grid.getCrossFaceNeighbor(f, 'left', v);
             else if (u === this.grid.size-1 && vx > pushThreshold) predictedNeighbor = this.grid.getCrossFaceNeighbor(f, 'right', v);
