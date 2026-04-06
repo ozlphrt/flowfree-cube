@@ -178,6 +178,11 @@ canvas {
   color: var(--text-main);
 }
 
+.hud-pill.score-pill #score-val {
+  color: var(--success);
+  transition: all 0.5s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+}
+
 .hud-pill.clickable {
   cursor: pointer;
 }
@@ -267,11 +272,6 @@ body.dark-theme .hud-pill.clickable:hover {
   text-shadow: 0 0 8px rgba(52, 199, 89, 0.6);
 }
 
-.mastery-over .ring-fg {
-  stroke: #ff3b30;
-  filter: drop-shadow(0 0 5px #ff3b30);
-}
-
 .mastery-over .pill-value {
   color: #ff3b30;
 }
@@ -283,11 +283,39 @@ body.dark-theme .hud-pill.clickable:hover {
   transform: translateX(-50%);
   font-size: 0.5rem;
   font-weight: 900;
+  letter-spacing: 0.2em;
   color: var(--success);
-  letter-spacing: 2px;
-  animation: perfect-float 1s ease-out forwards;
+  text-shadow: 0 0 10px rgba(52, 199, 89, 0.5);
   pointer-events: none;
   white-space: nowrap;
+}
+
+/* Mastery Score Popup Animation */
+.mastery-popup {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-weight: 900;
+  font-size: 1.4rem;
+  pointer-events: none;
+  z-index: 10000;
+  opacity: 0;
+  white-space: nowrap;
+}
+
+.mastery-popup.animate {
+  animation: mastery-fly-up 1.5s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
+}
+
+.mastery-popup.positive { color: var(--success); text-shadow: 0 0 10px rgba(52, 199, 89, 0.5); }
+.mastery-popup.negative { color: #ff3b30; text-shadow: 0 0 10px rgba(255, 59, 48, 0.5); }
+
+@keyframes mastery-fly-up {
+  0% { transform: translate(-50%, 0); opacity: 0; }
+  20% { transform: translate(-50%, -40px); opacity: 1; }
+  80% { transform: translate(-50%, -50px); opacity: 1; }
+  100% { transform: translate(-50%, -80px); opacity: 0; }
 }
 
 @keyframes perfect-float {

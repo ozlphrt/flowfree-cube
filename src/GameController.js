@@ -25,6 +25,7 @@ export class GameController {
     this.lvlDisplay = document.getElementById('level-val');
     this.livesDisplay = document.getElementById('lives-val');
     this.cellsDisplay = document.getElementById('cells-val');
+    this.scoreDisplay = document.getElementById('score-val');
     this.masteryContainer = document.querySelector('.cells-mastery-container');
     this.masteryRing = document.getElementById('cells-progress');
     this.targetOccupiedCells = 0;
@@ -33,6 +34,11 @@ export class GameController {
     const savedLives = localStorage.getItem('sovereign_lives');
     this.lives = savedLives !== null ? parseInt(savedLives, 10) : 3;
     if (this.livesDisplay) this.livesDisplay.innerText = this.lives;
+
+    // Load persistent Mastery Score
+    const savedMastery = localStorage.getItem('sovereign_total_mastery');
+    this.totalMastery = savedMastery !== null ? parseInt(savedMastery, 10) : 0;
+    if (this.scoreDisplay) this.scoreDisplay.innerText = this.totalMastery;
     
     this.isSolving = false; // GUARD: Prevent double-execution
     this.initLevel();
@@ -216,7 +222,52 @@ export class GameController {
     // Check for Level Victory
     if (this.completedPaths.length === this.plates.length / 2) {
         soundManager.playVictory();
+        
+        // Final Mastery Score Calculation (Budget Balance)
+        const conduits = this.calculateCurrentConduits();
+        const masteryGain = this.targetOccupiedCells - conduits;
+        
+        this.updateTotalMastery(masteryGain);
     }
+  }
+
+  calculateCurrentConduits() {
+    const allPaths = [...this.stubs, ...this.completedPaths];
+    const uniqueCells = new Set();
+    allPaths.forEach(path => {
+        path.cells.forEach(cell => {
+            const isPlate = this.plates.some(p => p.f === cell.f && p.u === cell.u && p.v === cell.v);
+            if (!isPlate) uniqueCells.add(`${cell.f},${cell.u},${cell.v}`);
+        });
+    });
+    return uniqueCells.size;
+  }
+
+  updateTotalMastery(val) {
+    if (val === 0) return; // No change for perfect (optional: show 'PERFECT' text instead)
+    
+    this.totalMastery += val;
+    localStorage.setItem('sovereign_total_mastery', this.totalMastery);
+    
+    // Animate HUD change
+    if (this.scoreDisplay) {
+        this.scoreDisplay.innerText = this.totalMastery;
+        this.showMasteryPopup(val);
+    }
+  }
+
+  showMasteryPopup(val) {
+    if (!this.masteryContainer) return;
+    
+    const popup = document.createElement('div');
+    const isPos = val > 0;
+    popup.className = `mastery-popup animate ${isPos ? 'positive' : 'negative'}`;
+    popup.innerText = (isPos ? '+' : '') + val;
+    
+    this.masteryContainer.appendChild(popup);
+    
+    // Auto-cleanup
+    setTimeout(() => popup.remove(), 1500);
   }
 
   clearPath(path) {
