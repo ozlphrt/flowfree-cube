@@ -183,6 +183,30 @@ canvas {
   transition: all 0.5s cubic-bezier(0.18, 0.89, 0.32, 1.28);
 }
 
+.hud-divider {
+  width: 1px;
+  height: 24px;
+  background: var(--glass-border);
+  margin: 0 5px;
+}
+
+.total-mastery-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.total-mastery-group .pill-label {
+  font-size: 0.5rem;
+  opacity: 0.6;
+}
+
+.total-mastery-group .pill-value {
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
 .hud-pill.clickable {
   cursor: pointer;
 }
@@ -216,20 +240,17 @@ body.dark-theme .hud-pill.clickable:hover {
   transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-.hud-pill.cells-pill {
-  padding: 0;
-  width: 48px;
-  height: 48px;
-  justify-content: center;
+.hud-pill.cells-pill, .mastery-pill {
+  padding: 4px 16px 4px 6px;
 }
 
 .cells-mastery-container {
   position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 42px;
   height: 42px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
 }
 
 .cells-ring {

@@ -53,15 +53,14 @@
 
       <!-- SOVEREIGN HUD: Top Double-Pill Interface -->
       <header id="sovereign-hud">
-        <div class="hud-pill score-pill">
-            <span class="pill-label">MASTERY</span>
-            <span id="score-val" class="pill-value">0</span>
-        </div>
+        <!-- 1. LEVEL PILL -->
         <div class="hud-pill level-pill">
             <span class="pill-label">LEVEL</span>
             <span id="level-val" class="pill-value">1</span>
         </div>
-        <div class="hud-pill cells-pill">
+
+        <!-- 2. UNIFIED MASTERY PILL (Budget + Persistent Total) -->
+        <div class="hud-pill mastery-pill">
             <div class="cells-mastery-container">
                 <svg class="cells-ring" width="42" height="42" viewBox="0 0 42 42">
                     <circle class="ring-bg" cx="21" cy="21" r="18" />
@@ -70,7 +69,14 @@
                 <span id="cells-val" class="pill-value">0</span>
                 <span id="perfect-label" class="perfect-label hidden">PERFECT</span>
             </div>
+            <div class="hud-divider"></div>
+            <div class="total-mastery-group">
+                <span class="pill-label">TOTAL</span>
+                <span id="score-val" class="pill-value">0</span>
+            </div>
         </div>
+
+        <!-- 3. AUTO SOLVE PILL -->
         <div id="solve-btn" class="hud-pill wrench-pill clickable" title="Auto Solve (Uses 1 Life)">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
@@ -135,7 +141,7 @@
         <div class="modal-content glass vertical-modal">
             <div class="modal-label">SOVEREIGN CUBE</div>
             <div class="version-details">
-                <div class="v-row"><span>VERSION</span> <strong id="v-num">v1.187.5</strong></div>
+                <div class="v-row"><span>VERSION</span> <strong id="v-num">v1.187.6</strong></div>
                 <div class="v-row"><span>BUILD</span> <code id="v-commit">8f2a91b</code></div>
                 <div class="v-row"><span>DATE</span> <span id="v-date">2026-04-02</span></div>
             </div>
