@@ -76,16 +76,16 @@ export class BackgroundManager {
         this.draw();
     }
 
-    setTheme(mode) {
+    setTheme(mode, isEco = false) {
         if (mode === 'dark') {
             this.gridColor = 'rgba(255,255,255,0.08)'; // Slightly more subtle for desaturated BG
             this.topColor = '#1e1e22';    // Desaturated Slate Top
             this.bottomColor = '#0d0d0f'; // Neutral Obsidian Bottom
             document.body.classList.add('dark-theme');
         } else {
-            this.gridColor = 'rgba(0,0,0,0.25)';
-            this.topColor = '#d8d8d8';
-            this.bottomColor = '#b0b0b0';
+            this.gridColor = isEco ? 'rgba(0,0,0,0.15)' : 'rgba(0,0,0,0.25)';
+            this.topColor = isEco ? '#888888' : '#d8d8d8';
+            this.bottomColor = isEco ? '#666666' : '#b0b0b0';
             document.body.classList.remove('dark-theme');
         }
         this.draw();

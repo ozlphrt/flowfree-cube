@@ -15,11 +15,13 @@ export class CubeGrid {
     // Visual State
     this.roughness = 0.20; 
     this.ior = 1.62;
-    this.labelMeshes = []; // Restored for Compass Alignment
+    this.labelMeshes = [[], [], [], [], [], []]; // SOVEREIGN: GROUPED BY FACE FOR OPTIMIZATION
     
     // EXTREME ECO: PRE-ALLOCATED MATH POOL
     this._v1 = new THREE.Vector3();
     this._v2 = new THREE.Vector3();
+    this._v3 = new THREE.Vector3();
+    this._v4 = new THREE.Vector3();
     this._q1 = new THREE.Quaternion();
     this._frameCount = 0;
 
@@ -142,6 +144,7 @@ export class CubeGrid {
     this.halfExtents = (this.size * this.cellSize) / 2;
     this.cells = [];
     this.faceGrids = [];
+    this.labelMeshes = [[], [], [], [], [], []];
     
     // Clear existing objects from group
     while(this.group.children.length > 0){ 
@@ -284,7 +287,7 @@ export class CubeGrid {
     plate.add(labelMesh);
 
     this.group.add(plate);
-    this.labelMeshes.push(labelMesh); // RESTORE TRACKING
+    this.addLabelToTracking(labelMesh, faceIndex); // REGISTER FOR SNAP
     return { plate, label: labelMesh };
   }
 
@@ -312,45 +315,55 @@ export class CubeGrid {
         fg.mesh.visible = (dot > 0.1); 
     });
 
-    // 2. SOVEREIGN COMPASS LABELS (GREEN-AXIS CONSTRAINED)
-    this._frameCount++;
-    const shouldUpdateCompass = !this.isEco || (this._frameCount % 3 === 0);
-    
-    if (shouldUpdateCompass) {
-        this.labelMeshes.forEach(label => {
-            if (!label.parent) return; 
-            
-            // 1. Get the world Normal vector (Green Axis)
-            const worldNormal = this._v1.set(0, 1, 0)
-                .applyQuaternion(label.parent.quaternion)
-                .applyQuaternion(this.group.quaternion);
-                
-            // 2. Project world UP onto the face plane
-            const projectedUp = this._v2.set(0, 1, 0).projectOnPlane(worldNormal).normalize();
-            
-            // 3. Skip stability-risky angles (top/bottom)
-            if (Math.abs(worldNormal.y) < 0.95 && projectedUp.length() > 0.1) {
-                // Get label's current world orientation 
-                label.getWorldQuaternion(this._q1);
-                const invLabelWorldQuat = this._q1.invert();
-                
-                // Project world UP into label local space
-                const localUpAtTarget = projectedUp.applyQuaternion(invLabelWorldQuat);
-                
-                // 4. Calculate the angle required to point local UP (Y) to world UP
-                const angleDelta = Math.atan2(localUpAtTarget.x, localUpAtTarget.y);
-                
-                // 5. SOVEREIGN SETTLE: Damped compass drift (0.05 for stability)
-                label.rotation.z -= angleDelta * 0.05; 
+    // 2. SOVEREIGN SNAP ALIGNMENT (ROBUST VECTOR PROJECTION)
+    for (let i = 0; i < 6; i++) {
+        const labels = this.labelMeshes[i];
+        if (labels.length === 0) continue;
+
+        // a. Face Orientation Basis
+        const normal = this.getFaceNormal(i);
+        const up = this.getFaceUp(i);
+        
+        // b. World Space Conversion
+        const wNormal = this._v1.copy(normal).applyQuaternion(this.group.quaternion);
+        const wUp = this._v2.copy(up).applyQuaternion(this.group.quaternion);
+        const wRight = this._v3.copy(wUp).cross(wNormal); // wRight = wUp x wNormal
+
+        // c. Project World UP onto Face Plane
+        const p = this._v4.set(0, 1, 0).projectOnPlane(wNormal);
+
+        if (Math.abs(wNormal.y) < 0.95 && p.length() > 0.01) {
+            p.normalize();
+
+            // d. Project Angle (Angle of world UP in the face's UP/RIGHT basis)
+            const targetZ = -Math.atan2(p.dot(wRight), p.dot(wUp));
+
+            // e. Snap Logic
+            const currentZ = labels[0].rotation.z;
+            const delta = Math.atan2(Math.sin(targetZ - currentZ), Math.cos(targetZ - currentZ));
+
+            if (Math.abs(delta) > Math.PI / 18) {
+                for (let j = 0; j < labels.length; j++) {
+                    labels[j].rotation.z = targetZ; 
+                }
             }
-        });
+        }
     }
   }
 
   // Helper to remove ribbon-specific labels from focus/compass
   removeLabels(meshes) {
     if (!meshes || meshes.length === 0) return;
-    this.labelMeshes = this.labelMeshes.filter(m => !meshes.includes(m));
+    for (let i = 0; i < 6; i++) {
+        this.labelMeshes[i] = this.labelMeshes[i].filter(m => !meshes.includes(m));
+    }
+  }
+
+  addLabelToTracking(mesh, faceIndex) {
+    if (faceIndex === undefined || faceIndex === -1) return;
+    if (!this.labelMeshes[faceIndex].includes(mesh)) {
+        this.labelMeshes[faceIndex].push(mesh);
+    }
   }
 
   getNeighborCells(cell) {
@@ -389,12 +402,13 @@ export class CubeGrid {
         // ECO MODE: 2D FLAT RIBBONS
         const ribbonW = this.cellSize * 0.32; // MATCHING INTERACTION MANAGER
         const surfaceNudge = 0.003; 
+        const isDark = document.body.classList.contains('dark-theme');
         const ribbonMat = new THREE.MeshStandardMaterial({ 
-            color: pipeColor,
+            color: pipeColor, // RESTORE VIBRANT
             emissive: pipeColor,
-            emissiveIntensity: 0.70, // SOVEREIGN SYNC: MATCH PLATES
+            emissiveIntensity: isDark ? 0.80 : 0.70, 
             roughness: 0.3,
-            transparent: false, // OPAQUE FOR CORRECT CUBE OCCLUSION
+            transparent: false, 
             opacity: 1.0, 
             side: THREE.DoubleSide, 
             depthWrite: true
@@ -439,6 +453,7 @@ export class CubeGrid {
                 labelMesh.lookAt(labelMesh.position.clone().add(normal));
                 labelMesh.renderOrder = 51; // ABOVE JOINT
                 this.group.add(labelMesh);
+                this.addLabelToTracking(labelMesh, cells[cellIdx].f); // TRACK RIBBON LABELS
                 result.meshes.push(labelMesh);
                 result.meshesByCell[cellIdx].push(labelMesh);
             }

@@ -78,10 +78,19 @@ export class GameController {
     // 3. Clear old state
     this.plates.forEach(p => {
         this.grid.group.remove(p.mesh);
-        if (p.labelMesh) this.grid.group.remove(p.labelMesh);
+        if (p.labelMesh) {
+            this.grid.group.remove(p.labelMesh);
+            this.grid.removeLabels([p.labelMesh]);
+        }
     });
-    this.stubs.forEach(s => s.meshes.forEach(m => this.grid.group.remove(m)));
-    this.completedPaths.forEach(p => p.meshes.forEach(m => this.grid.group.remove(m)));
+    this.stubs.forEach(s => {
+        this.grid.removeLabels(s.meshes);
+        s.meshes.forEach(m => this.grid.group.remove(m));
+    });
+    this.completedPaths.forEach(p => {
+        this.grid.removeLabels(p.meshes);
+        p.meshes.forEach(m => this.grid.group.remove(m));
+    });
     
     this.plates = [];
     this.stubs = [];
@@ -286,6 +295,7 @@ export class GameController {
 
   clearPath(path) {
     if (path.meshes) {
+      this.grid.removeLabels(path.meshes);
       path.meshes.forEach(m => this.grid.group.remove(m));
       path.meshes = [];
       path.meshesByCell = {};
@@ -352,97 +362,150 @@ export class GameController {
   }
 
   async solveBoard() {
-    // 1. Guard Clause: Logic check (Is solving currently in progress?)
     if (!this.currentPuzzle || this.lives <= 0 || this.isSolving) return;
     this.isSolving = true;
 
     try {
-        // 2. Resource Consumption & Sync
         this.lives--;
         localStorage.setItem('sovereign_lives', this.lives);
         if (this.livesDisplay) this.livesDisplay.innerText = this.lives;
 
-        // 3. Clear existing paths/stubs to prevent collision artifacts
-        this.stubs.forEach(s => s.meshes.forEach(m => this.grid.group.remove(m)));
-        this.completedPaths.forEach(p => p.meshes.forEach(m => this.grid.group.remove(m)));
+        // 1. Unified Cleanup
+        [...this.stubs, ...this.completedPaths].forEach(p => {
+            this.grid.removeLabels(p.meshes);
+            p.meshes.forEach(m => this.grid.group.remove(m));
+        });
         this.stubs = [];
         this.completedPaths = [];
 
-        // 4. SOVEREIGN TRACING: Reveal every cell and corner-wrap individually
+        const isEco = this.grid.isEco;
+        const isDark = document.body.classList.contains('dark-theme');
+        const ribbonW = this.grid.cellSize * 0.32;
+
         for (const item of this.currentPuzzle) {
-            soundManager.playVent(); // Strategic click for new path start
+            soundManager.playVent();
 
             const pathObj = {
                 cells: item.path,
                 color: item.color,
-                label: item.label, // SOVEREIGN FIX: PASSING THE ACTUAL LABEL
+                label: item.label,
                 isCompleted: true,
                 meshes: [],
                 meshesByCell: {}
             };
 
-            const points = this.grid.getPathPoints(pathObj.cells); // SOVEREIGN FIX: DEFINE POINTS FOR TRACING
-            const pipeR = 0.22; // SOVEREIGN SYNC: MATCH CHUNKY PIPES
-            const segments = 16; // SOVEREIGN SYNC: MATCH SMOOTHNESS
-            const mat = new THREE.MeshPhysicalMaterial({
-                color: new THREE.Color(item.color),
-                roughness: 0.1, 
-                metalness: 0.1, 
-                clearcoat: 1.0,
-                clearcoatRoughness: 0.05,
-                reflectivity: 0.5,
-                emissive: 0x000000, 
-                emissiveIntensity: 0.0 
-            });
+            const points = this.grid.getPathPoints(pathObj.cells);
+            const pipeColor = new THREE.Color(item.color);
+            
+            // 2. Parity Materials
+            let pipeMat, labelMat;
+            if (isEco) {
+                pipeMat = new THREE.MeshStandardMaterial({
+                    color: pipeColor, // RESTORE VIBRANT
+                    emissive: pipeColor,
+                    emissiveIntensity: isDark ? 0.8 : 0.7,
+                    roughness: 0.3,
+                    side: THREE.DoubleSide,
+                    depthWrite: true
+                });
+                const labelTexture = TextureHelper.createLabeledTexture(item.color, item.label);
+                labelMat = new THREE.MeshStandardMaterial({
+                    map: labelTexture,
+                    emissiveMap: labelTexture,
+                    transparent: true,
+                    opacity: 1.0,
+                    depthWrite: false, 
+                    side: THREE.DoubleSide,
+                    emissive: 0xffffff,
+                    emissiveIntensity: isDark ? 0.2 : 0.6
+                });
+            } else {
+                pipeMat = new THREE.MeshPhysicalMaterial({
+                    color: pipeColor,
+                    emissive: pipeColor,
+                    emissiveIntensity: isDark ? 0.05 : 0.0, // SLIGHT GLOW IN DARK
+                    roughness: 0.1, 
+                    metalness: 0.1,
+                    clearcoat: 1.0,
+                    clearcoatRoughness: 0.05,
+                    reflectivity: 0.5
+                });
+            }
 
-            const jointGeo = new THREE.SphereGeometry(pipeR, segments, segments);
-            const cylinderGeoBase = new THREE.CylinderGeometry(pipeR, pipeR, 1, segments);
+            const pipeR = 0.22;
+            const segments = 16;
+            const jointGeo = isEco ? new THREE.CircleGeometry(ribbonW / 2, 32) : new THREE.SphereGeometry(pipeR, segments, segments);
+            const labelGeo = isEco ? new THREE.CircleGeometry(ribbonW * 0.40, 32) : null;
+            const cylinderGeoBase = isEco ? new THREE.PlaneGeometry(ribbonW, 1) : new THREE.CylinderGeometry(pipeR, pipeR, 1, segments);
 
             this.addCompletedPath(pathObj);
 
-            // CINEMATIC TRACE LOOP
+            // 3. Cinematic Trace Loop
             for (let i = 0; i < points.length; i++) {
                 const p = points[i].pos;
                 const cellIdx = points[i].cellIdx;
-                
-                // 1. Manifest the Joint
-                const joint = new THREE.Mesh(jointGeo, mat);
-                joint.position.copy(p);
-                joint.renderOrder = 60;
-                this.grid.group.add(joint);
-                pathObj.meshes.push(joint);
-                if (!pathObj.meshesByCell[cellIdx]) pathObj.meshesByCell[cellIdx] = [];
-                pathObj.meshesByCell[cellIdx].push(joint);
+                const cellData = pathObj.cells[cellIdx];
+                const normal = this.grid.getFaceNormal(cellData.f);
 
-                // 2. Manifest Segment to PREVIOUS (if exists)
+                // a. Manifest Joint
+                if (isEco) {
+                    if (points[i].isCenter) {
+                        const joint = new THREE.Mesh(jointGeo, pipeMat);
+                        joint.position.copy(p).add(normal.clone().multiplyScalar(0.003));
+                        joint.lookAt(joint.position.clone().add(normal));
+                        joint.renderOrder = 50;
+                        this.grid.group.add(joint);
+                        pathObj.meshes.push(joint);
+                        
+                        // Register Label for Snap
+                        const labelMesh = new THREE.Mesh(labelGeo, labelMat);
+                        labelMesh.position.copy(joint.position).add(normal.clone().multiplyScalar(0.001));
+                        labelMesh.lookAt(labelMesh.position.clone().add(normal));
+                        labelMesh.renderOrder = 51;
+                        this.grid.group.add(labelMesh);
+                        this.grid.addLabelToTracking(labelMesh, cellData.f);
+                        pathObj.meshes.push(labelMesh);
+                    }
+                } else {
+                    const joint = new THREE.Mesh(jointGeo, pipeMat);
+                    joint.position.copy(p);
+                    joint.renderOrder = 60;
+                    this.grid.group.add(joint);
+                    pathObj.meshes.push(joint);
+                }
+
+                // b. Manifest Segment to Previous
                 if (i > 0) {
                     const pPrev = points[i-1].pos;
                     const dist = p.distanceTo(pPrev);
                     if (dist > 0.001) {
-                        const mesh = new THREE.Mesh(cylinderGeoBase, mat);
-                        mesh.scale.y = dist;
-                        mesh.position.copy(p).add(pPrev).multiplyScalar(0.5);
-                        mesh.lookAt(p);
-                        mesh.rotateX(Math.PI / 2);
-                        mesh.renderOrder = 60;
+                        const mesh = new THREE.Mesh(cylinderGeoBase, pipeMat);
+                        if (isEco) {
+                            const segFaceIdx = points[i-1].isCenter ? cellData.f : pathObj.cells[points[i-1].cellIdx].f;
+                            const segNormal = this.grid.getFaceNormal(segFaceIdx);
+                            mesh.scale.y = dist;
+                            mesh.position.copy(p).add(pPrev).multiplyScalar(0.5).add(segNormal.clone().multiplyScalar(0.003));
+                            mesh.quaternion.setFromRotationMatrix(new THREE.Matrix4().lookAt(p, pPrev, segNormal));
+                            mesh.rotateX(Math.PI/2);
+                        } else {
+                            mesh.scale.y = dist;
+                            mesh.position.copy(p).add(pPrev).multiplyScalar(0.5);
+                            mesh.lookAt(p);
+                            mesh.rotateX(Math.PI / 2);
+                        }
+                        mesh.renderOrder = isEco ? 50 : 60;
                         this.grid.group.add(mesh);
                         pathObj.meshes.push(mesh);
-                        if (!pathObj.meshesByCell[cellIdx]) pathObj.meshesByCell[cellIdx] = [];
-                        pathObj.meshesByCell[cellIdx].push(mesh);
                     }
                 }
 
-                // WAKE UP ENGINE
                 if (window.requestSovereignFrame) window.requestSovereignFrame();
-
-                // ORGANIC CADENCE: Cell-by-cell feel (~40ms)
                 await new Promise(r => setTimeout(r, 40));
-                soundManager.playTick(i); // Escalating pitch for the trace
+                soundManager.playTick(i);
             }
         }
     } finally {
         this.isSolving = false;
-        // 5. Final update hook
         if (this.onUpdate) this.onUpdate();
     }
   }

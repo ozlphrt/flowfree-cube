@@ -123,6 +123,31 @@ export class DebugManager {
         resetRow.appendChild(resetBtn);
         this.panel.appendChild(resetRow);
 
+        // Infinite Solver Section
+        const infiniteRow = document.createElement('div');
+        infiniteRow.className = 'debug-row';
+        const infiniteBtn = document.createElement('button');
+        infiniteBtn.innerText = 'GIVE INFINITE AUTO SOLVES (999k)';
+        infiniteBtn.style.width = '100%';
+        infiniteBtn.style.padding = '8px';
+        infiniteBtn.style.background = 'rgba(0, 122, 255, 0.2)';
+        infiniteBtn.style.color = '#007aff';
+        infiniteBtn.style.border = '1px solid #007aff';
+        infiniteBtn.style.cursor = 'pointer';
+        infiniteBtn.style.marginTop = '10px';
+        
+        infiniteBtn.onclick = () => {
+            const infiniteLives = 999999;
+            this.gameController.lives = infiniteLives;
+            localStorage.setItem('sovereign_lives', infiniteLives.toString());
+            if (this.gameController.livesDisplay) {
+                this.gameController.livesDisplay.innerText = infiniteLives.toString();
+            }
+            console.log('Sovereign Debug: Infinite Auto Solves Granted.');
+        };
+        infiniteRow.appendChild(infiniteBtn);
+        this.panel.appendChild(infiniteRow);
+
         const controls = [
             { id: 'ambient', label: 'Ambient', min: 0, max: 2, step: 0.1, val: ambient?.intensity || 0, cb: (v) => { if (ambient) ambient.intensity = v; } },
             { id: 'env', label: 'Env Intensity', min: 0, max: 5, step: 0.1, val: this.scene.environmentIntensity, cb: (v) => { this.scene.environmentIntensity = v; } },

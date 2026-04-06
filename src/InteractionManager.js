@@ -447,6 +447,9 @@ export class InteractionManager {
             const pulses = 3;
             const wave = Math.pow(Math.sin(t * Math.PI * pulses), 4);
             const intensity = wave * 8.0 * (1 - t); // MIGHTY FLASH (peaks at 8x)
+            
+            const isDark = document.body.classList.contains('dark-theme');
+            const baseIntensity = (this.grid.isEco && !isDark) ? 0.7 : 0.2;
             const emissiveMult = 1.0 + intensity; 
 
             // Collect all meshes to flash
@@ -463,7 +466,7 @@ export class InteractionManager {
                     const mats = Array.isArray(m.material) ? m.material : [m.material];
                     mats.forEach(mat => {
                         if (mat.emissiveIntensity !== undefined) {
-                            mat.emissiveIntensity = 0.2 * emissiveMult;
+                            mat.emissiveIntensity = baseIntensity * emissiveMult;
                         }
                     });
                 }
@@ -475,7 +478,8 @@ export class InteractionManager {
                         const mats = Array.isArray(m.material) ? m.material : [m.material];
                         mats.forEach(mat => {
                             if (mat.emissiveIntensity !== undefined) {
-                                mat.emissiveIntensity = 0.2; 
+                                const isDark = document.body.classList.contains('dark-theme');
+                                mat.emissiveIntensity = (this.grid.isEco && !isDark) ? 0.7 : 0.2; 
                             }
                         });
                     }
@@ -510,8 +514,12 @@ export class InteractionManager {
         // Sovereign Pulse: Breathe the completed pipes
         const pulse = (Math.sin(this.victoryTime * 3.0) * 0.5 + 0.5) * 0.4;
         this.gameController.completedPaths.forEach(path => {
+            const isDark = document.body.classList.contains('dark-theme');
+            const baseIntensity = (this.grid.isEco && !isDark) ? 0.7 : 0.0;
+            const pulseScale = (this.grid.isEco && !isDark) ? 0.2 : 1.0;
+
             path.meshes.forEach(m => {
-                if (m.material) m.material.emissiveIntensity = pulse * 0.25; 
+                if (m.material) m.material.emissiveIntensity = baseIntensity + (pulse * 0.25 * pulseScale); 
             });
         });
     } else {
@@ -530,6 +538,7 @@ export class InteractionManager {
     if (!force && path._lastDrawnLength === path.cells.length) return;
     path._lastDrawnLength = path.cells.length;
 
+    this.grid.removeLabels(path.meshes); // STOP TRACKING OLD LABELS
     path.meshes.forEach(m => this.grid.group.remove(m));
     path.meshes = [];
     path.meshesByCell = {};
@@ -543,15 +552,16 @@ export class InteractionManager {
     if (isActive) {
       const litColor = new THREE.Color(path.color); // FULL BRIGHTNESS 1.0
       
+      const isDark = document.body.classList.contains('dark-theme');
       let ribbonMat;
       if (this.grid.isEco) {
           // ECO MODE: BATTERY-AWARE MATTE
           ribbonMat = new THREE.MeshStandardMaterial({ 
-            color: litColor,
+            color: litColor, // RESTORE VIBRANT
             emissive: litColor,
-            emissiveIntensity: 0.70, // SOVEREIGN SYNC: MATCH PLATES
+            emissiveIntensity: isDark ? 0.80 : 0.70, 
             roughness: 0.3,
-            transparent: false, // OPAQUE FOR CORRECT CUBE OCCLUSION
+            transparent: false, 
             opacity: 1.0, 
             side: THREE.DoubleSide, 
             depthWrite: true
@@ -612,6 +622,7 @@ export class InteractionManager {
             labelMesh.lookAt(labelMesh.position.clone().add(normal));
             labelMesh.renderOrder = 61; // ABOVE JOINT
             this.grid.group.add(labelMesh);
+            this.grid.addLabelToTracking(labelMesh, path.cells[cellIdx].f); // TRACK ACTIVE LABELS
             path.meshes.push(labelMesh);
             path.meshesByCell[cellIdx].push(labelMesh);
         }

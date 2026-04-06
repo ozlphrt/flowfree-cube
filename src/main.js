@@ -14,7 +14,7 @@ registerSW({ onOfflineReady() {} });
 
 // VERSION CHECK - Reliable fetch-based update detection
 // This bypasses the service worker cache entirely.
-const CURRENT_VERSION = '1.189.0'; // SOVEREIGN ENGINE SYNC
+const CURRENT_VERSION = '1.190.0'; // SOVEREIGN ENGINE SYNC
 const VERSION_URL = '/flowfree-cube/version.json';
 
 async function checkForUpdate() {
@@ -218,7 +218,7 @@ function applySettings(settings) {
             grid.coreMat.opacity = settings.darkMode ? 0.70 : 0.60; // SOVEREIGN REFINEMENT: SLIGHTLY MORE TRANSLUCENT
             grid.coreMat.color.set(0xffffff); // PURE WHITE IN BOTH THEMES
             grid.coreMat.emissive.set(0xffffff); // SOVEREIGN GLOW: PREVENT DARKNESS
-            grid.coreMat.emissiveIntensity = settings.darkMode ? 0.05 : 0.25; // BRIGHTER IN LIGHT THEME
+            grid.coreMat.emissiveIntensity = settings.darkMode ? 0.05 : 0.40; // SIGNIFICANTLY BRIGHTER IN LIGHT THEME
             grid.isEco = true; 
         }
     } else {
@@ -230,13 +230,23 @@ function applySettings(settings) {
             grid.coreMat.transmission = 0.95; // RESTORE SOVEREIGN GLASS
             grid.coreMat.opacity = 1.0;
             grid.coreMat.ior = settings.darkMode ? 1.71 : 1.62;
+            grid.coreMat.emissiveIntensity = 0.0;
             grid.isEco = false;
         }
     }
 
+    // C. PLATE UPDATES (Dynamic Stylistic Sync)
+    gameController.plates.forEach(p => {
+        const isDark = settings.darkMode;
+        const plateColor = (isEco && !isDark) ? 0xffffff : (isDark ? 0x111111 : 0xeeeeee);
+        p.mesh.material.color.set(plateColor);
+        p.mesh.material.emissive.set(plateColor);
+        p.mesh.material.emissiveIntensity = isEco ? (isDark ? 0.2 : 0.7) : 0.2;
+    });
+
     // 3. Theme
     if (settings.darkMode) {
-        backgroundManager.setTheme('dark');
+        backgroundManager.setTheme('dark', isEco);
         renderer.toneMappingExposure = 0.7;
         scene.environmentIntensity = isEco ? 0.0 : 1.5; // SOVEREIGN BOOST: SHINY REFLECTIONS
         ambientLight.intensity = 0.8;
@@ -254,7 +264,7 @@ function applySettings(settings) {
             grid.barMat.opacity = 0.1; 
         }
     } else {
-        backgroundManager.setTheme('light');
+        backgroundManager.setTheme('light', isEco);
         renderer.toneMappingExposure = 0.95; // SOVEREIGN BOOST: VIBRANT REFLECTIONS
         scene.environmentIntensity = isEco ? 0.0 : 1.5; // SOVEREIGN BOOST: SHINY REFLECTIONS
         ambientLight.intensity = 0.0;
