@@ -379,13 +379,18 @@ export class InteractionManager {
     }
 
     if (this.lockedLocalAxis !== null) {
-        // Standardize delta signs: Moving UP/RIGHT should always rotate in the intuitive direction
-        const deltaX = this.pointer.x - this.lastPointer.x;
-        const deltaY = this.pointer.y - this.lastPointer.y;
-        
-        // Final Fix: Apply a 1.5x multiplier to vertical movement to overcome screen aspect ratio stiffness
-        const delta = (this.lockedDragDir === 'x' ? deltaX : -deltaY * 1.5);
-        this.targetRotationVelocity = delta * actualSpeed * this.sensitivityFactor; 
+        if (this.activePath && predictedNeighbor) {
+            // SOVEREIGN DRIFT: Rotate while at edge based on drag displacement (push force)
+            // This ensures the cube rotates even when the pointer is stationary at the edge.
+            const driftDelta = (this.lockedDragDir === 'x' ? vx : -vy * 1.5);
+            this.targetRotationVelocity = driftDelta * actualSpeed * this.sensitivityFactor;
+        } else {
+            // STANDARD ROTATION: Swipe-based velocity (Delta-based)
+            const deltaX = this.pointer.x - this.lastPointer.x;
+            const deltaY = this.pointer.y - this.lastPointer.y;
+            const delta = (this.lockedDragDir === 'x' ? deltaX : -deltaY * 1.5);
+            this.targetRotationVelocity = delta * actualSpeed * this.sensitivityFactor; 
+        }
         if (window.requestSovereignFrame) window.requestSovereignFrame();
     }
     
