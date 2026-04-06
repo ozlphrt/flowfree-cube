@@ -21,7 +21,7 @@ export class TextureHelper {
     // 2. Draw Ultra-Bold Massive Label
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.font = '900 380px "Arial Black", Impact, sans-serif'; // SOVEREIGN REFINEMENT: SMALLER FOR DOUBLE DIGITS
+    ctx.font = '900 380px "Lexend", sans-serif'; // SOVEREIGN REFINEMENT: HIGH-LEGIBILITY GEOMETRIC FONT
 
     // Heavy black outer stroke
     ctx.strokeStyle = strokeColor;

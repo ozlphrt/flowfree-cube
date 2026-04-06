@@ -14,7 +14,7 @@ registerSW({ onOfflineReady() {} });
 
 // VERSION CHECK - Reliable fetch-based update detection
 // This bypasses the service worker cache entirely.
-const CURRENT_VERSION = '1.190.0'; // SOVEREIGN ENGINE SYNC
+const CURRENT_VERSION = '1.191.0'; // SOVEREIGN ENGINE SYNC
 const VERSION_URL = '/flowfree-cube/version.json';
 
 async function checkForUpdate() {
@@ -168,19 +168,41 @@ const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
 dirLight.position.set(10, 20, 10);
 scene.add(dirLight);
 
-// 3. Game Components
-const grid = new CubeGrid(scene, 5);
-const gameController = new GameController(grid);
-window.gameController = gameController;
-const interactionManager = new InteractionManager(camera, grid, renderer, gameController, scene);
-window.interactionManager = interactionManager;
-const backgroundManager = new BackgroundManager(scene, '#020202', '#0a0a0a'); 
+// 3. Game Components (Wait for Font for correct Label Rendering)
+let grid, gameController, interactionManager, backgroundManager, debugManager;
 
-// 5. Sovereign Debug Panel (CTRL+Shift+Alt+D)
-const debugManager = new DebugManager(gameController, scene, renderer, grid, interactionManager, backgroundManager);
+document.fonts.ready.then(() => {
+    grid = new CubeGrid(scene, 5);
+    gameController = new GameController(grid);
+    window.gameController = gameController;
+    interactionManager = new InteractionManager(camera, grid, renderer, gameController, scene);
+    window.interactionManager = interactionManager;
+    backgroundManager = new BackgroundManager(scene, '#020202', '#0a0a0a'); 
+    debugManager = new DebugManager(gameController, scene, renderer, grid, interactionManager, backgroundManager);
+    
+    // Initial UI Setup
+    initModals();
+    const settingsPanel = new SettingsPanel(applySettings);
+    settingsPanel.onRefill = () => gameController.refillLives();
+    
+    updateHUD();
+    gameController.onUpdate = updateHUD;
+
+    nextLevelBtn.onclick = () => {
+        victoryModal.classList.add('hidden');
+        interactionManager.setVictory(false); // STOP TUMBLE & RESET
+        gameController.nextLevel();
+    };
+    
+    fitCameraToCube();
+    
+    console.log('Sovereign Hub: Lexend Font Loaded & UI Restored.');
+});
 
 // 6. Settings Management
 function applySettings(settings) {
+    if (!grid || !gameController || !backgroundManager) return;
+
     // 1. Level Jump
     if (settings.levelJump) {
         gameController.currentLevel = settings.levelJump;
@@ -238,10 +260,10 @@ function applySettings(settings) {
     // C. PLATE UPDATES (Dynamic Stylistic Sync)
     gameController.plates.forEach(p => {
         const isDark = settings.darkMode;
-        const plateColor = (isEco && !isDark) ? 0xffffff : (isDark ? 0x111111 : 0xeeeeee);
-        p.mesh.material.color.set(plateColor);
-        p.mesh.material.emissive.set(plateColor);
-        p.mesh.material.emissiveIntensity = isEco ? (isDark ? 0.2 : 0.7) : 0.2;
+        const vibrantColor = new THREE.Color(p.color);
+        p.mesh.material.color.copy(vibrantColor);
+        p.mesh.material.emissive.copy(vibrantColor);
+        p.mesh.material.emissiveIntensity = isEco ? (isDark ? 0.3 : 0.8) : 0.2;
     });
 
     // 3. Theme
@@ -284,8 +306,9 @@ function applySettings(settings) {
     }
 }
 
-const settingsPanel = new SettingsPanel(applySettings);
-settingsPanel.onRefill = () => gameController.refillLives();
+// Moved to document.fonts.ready block
+// const settingsPanel = new SettingsPanel(applySettings);
+// settingsPanel.onRefill = () => gameController.refillLives();
 
 // 4. UI Hookups
 const victoryModal = document.getElementById('victory-modal');
@@ -306,14 +329,15 @@ function updateHUD() {
     }
 }
 
-gameController.onUpdate = updateHUD;
-updateHUD();
+// Moved to document.fonts.ready block
+// gameController.onUpdate = updateHUD;
+// updateHUD();
 
-nextLevelBtn.onclick = () => {
-    victoryModal.classList.add('hidden');
-    interactionManager.setVictory(false); // STOP TUMBLE & RESET
-    gameController.nextLevel();
-};
+// nextLevelBtn.onclick = () => {
+//     victoryModal.classList.add('hidden');
+//     interactionManager.setVictory(false); // STOP TUMBLE & RESET
+//     gameController.nextLevel();
+// };
 
 // Fetch version.json on load to populate window.appVersion for the version modal
 (async () => {
@@ -385,7 +409,8 @@ window.showLevelModal = () => {
     }
 };
 
-initModals(); // SOVEREIGN UI INIT
+// Moved to document.fonts.ready block
+// initModals(); 
 
 
 
@@ -427,6 +452,9 @@ function loop() {
     }
 
     // Check if we need to render
+    // Wait for components to initialize
+    if (!interactionManager || !grid) return;
+
     const interactionActive = interactionManager.isDragging || 
                               interactionManager.isResetting || 
                               interactionManager.isVictorious || 
@@ -450,5 +478,6 @@ window.addEventListener('resize', () => {
 });
 
 loop();
-fitCameraToCube(); // SOVEREIGN: Mandatory initial framing call
-console.log('3D FlowFree Sovereign Restoration Complete. Battery Optimized v1.185.2');
+// Moved to document.fonts.ready block
+// fitCameraToCube(); 
+console.log('Sovereign Restoration Complete. Awaiting Font Load...');

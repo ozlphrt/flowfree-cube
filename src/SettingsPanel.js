@@ -5,8 +5,8 @@ export class SettingsPanel {
     // Load persisted settings
     this.sensitivity = parseFloat(localStorage.getItem('flowfree_sensitivity')) || 1.0;
     this.audioEnabled = localStorage.getItem('flowfree_audio') !== 'false';
-    this.darkMode = localStorage.getItem('flowfree_dark_mode') === 'true';
-    this.ecoMode = localStorage.getItem('flowfree_eco_mode') === 'true';
+    this.darkMode = localStorage.getItem('flowfree_dark_mode') === 'true'; // Default to Light
+    this.ecoMode = localStorage.getItem('flowfree_eco_mode') !== 'false'; // Default to ECO (since null !== 'false')
     
     this.initUI();
     
