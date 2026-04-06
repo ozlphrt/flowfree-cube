@@ -275,15 +275,35 @@ export class InteractionManager {
     
     let actualSpeed = 0; 
     if (this.activePath) {
-        const { u, v } = this.lastCell;
+        const { f, u, v } = this.lastCell;
         let shouldRotate = false;
         const pushThreshold = 0.15; 
+        
+        let predictedNeighbor = null;
         if (this.lockedDragDir === 'x') {
-            if ((u === 0 && vx < -pushThreshold) || (u === this.grid.size-1 && vx > pushThreshold)) shouldRotate = true;
+            if (u === 0 && vx < -pushThreshold) predictedNeighbor = this.grid.getCrossFaceNeighbor(f, 'left', v);
+            else if (u === this.grid.size-1 && vx > pushThreshold) predictedNeighbor = this.grid.getCrossFaceNeighbor(f, 'right', v);
         } else if (this.lockedDragDir === 'y') {
-            if ((v === 0 && vy < -pushThreshold) || (v === this.grid.size-1 && vy > pushThreshold)) shouldRotate = true;
+            if (v === 0 && vy < -pushThreshold) predictedNeighbor = this.grid.getCrossFaceNeighbor(f, 'bottom', u);
+            else if (v === this.grid.size-1 && vy > pushThreshold) predictedNeighbor = this.grid.getCrossFaceNeighbor(f, 'top', u);
         }
-        actualSpeed = shouldRotate ? -0.15 : 0; // INCREASED PUSH FORCE
+
+        if (predictedNeighbor) {
+            // SOVEREIGN INTELLIGENCE: Is the target face visible enough?
+            const nextNormal = this.grid.getFaceNormal(predictedNeighbor.f).applyQuaternion(this.grid.group.quaternion);
+            const camToGrid = new THREE.Vector3().subVectors(this.camera.position, this.grid.group.position).normalize();
+            const dot = nextNormal.dot(camToGrid);
+            
+            if (dot < 0.25) {
+                // HIDDEN: Apply strong nudge
+                actualSpeed = -0.4; 
+                shouldRotate = true;
+            } else {
+                // VISIBLE: Just gentle resistance nudge
+                actualSpeed = -0.15;
+                shouldRotate = true;
+            }
+        }
     } else {
         actualSpeed = 1.5; // INCREASED FREE ROTATION SPEED
     }
