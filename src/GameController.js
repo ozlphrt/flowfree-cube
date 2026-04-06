@@ -17,6 +17,14 @@ export class GameController {
     this.completedPaths = [];
     this.onUpdate = null;
     
+    // TEMP RESET: Force level 1 and clear mastery for the new system (One-time sync)
+    if (localStorage.getItem('sovereign_sync_v1.187.7') !== 'done') {
+        localStorage.setItem(SAVE_KEY, '1');
+        localStorage.setItem('sovereign_total_mastery', '0');
+        localStorage.setItem('sovereign_sync_v1.187.7', 'done');
+        console.log('Sovereign: One-time Reset for Scoring Synchronization (v1.187.7)');
+    }
+    
     // Load persisted level or default to 1
     const savedLevel = localStorage.getItem(SAVE_KEY);
     this.currentLevel = savedLevel ? parseInt(savedLevel, 10) : 1;
