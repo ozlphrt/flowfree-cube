@@ -7,14 +7,23 @@ export class PuzzleGenerator {
     const rng = new SeedRandom(level * 48271); // Use level as seed with a multiplier
     const totalCells = grid.size * grid.size * 6;
     // 1. Difficulty Curve Parameters: Progressive Density & Complexity
-    const targetDensity = Math.min(0.85, 0.45 + (Math.min(level, 120) / 120) * 0.4); 
-    const minPairs = (level < 6) ? 2 : (level < 16 ? 5 : (level < 46 ? 7 : 9));
+    // SOVEREIGN ULTRA: High-density starts and aggressive path crowding
+    const targetDensity = (level < 6) ? 0.50 : Math.min(0.88, 0.60 + (Math.min(level, 200) / 200) * 0.28); 
+    
+    // ULTRA SHARP progression: 3 -> 4 -> 8 -> 11 -> 15
+    let minPairs = 3;
+    if (level >= 4)  minPairs = 4;
+    if (level >= 6)  minPairs = 8;  // THE 3x3 REAL CHALLENGE
+    if (level >= 11) minPairs = 11;
+    if (level >= 26) minPairs = 15;
+    if (level >= 56) minPairs = 20;
+    
     const colors = Object.values(COLORS);
     
-    // Aggressive 3D First (Locked at Level 6+)
-    let forceFaceCrossingProb = 0;
-    if (level >= 3 && level < 6) forceFaceCrossingProb = 0.5;
-    if (level >= 6) forceFaceCrossingProb = 0.95;
+    // Aggressive 3D First (Forced at Level 6+)
+    let forceFaceCrossingProb = 0.5;
+    if (level >= 3) forceFaceCrossingProb = 0.85;
+    if (level >= 6) forceFaceCrossingProb = 1.0; // EVERY path must cross faces
 
     const minManhattanDist = (level < 3) ? 1 : (level < 10 ? grid.size + 1 : Math.floor(grid.size * 1.5));
     const maxPathLen = Math.max(10, Math.floor(totalCells / 4)); 
@@ -35,7 +44,7 @@ export class PuzzleGenerator {
             if (Date.now() - startTime > 2500) break; // Hard safety
             
             const color = colors[colorIdx % colors.length];
-            const label = Math.floor(colorIdx / colors.length) + 1;
+            const label = colorIdx + 1; // SOVEREIGN CLARITY: Every pair gets a unique sequential number
             
             const candidates = this.getStartEndCandidates(grid, occupied, allTerminals, level > 35, rng);
             if (candidates.length === 0) { attempts++; continue; }

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { TextureHelper } from './TextureHelper.js';
 
 export class CubeGrid {
   constructor(scene, size = 5, cellSize = 1.0) {
@@ -218,8 +219,17 @@ export class CubeGrid {
     const plateGeo = new THREE.CylinderGeometry(plateRadius, plateRadius, plateHeight, 32);
     
     // 1. Base Plate - ORIGINAL COLOR RESERVED
-    const plateMat = new THREE.MeshPhysicalMaterial({ 
-      color: new THREE.Color(color).multiplyScalar(0.7), 
+    const plateColor = new THREE.Color(color); // FULL BRIGHTNESS 1.0
+    const plateMat = this.isEco ? new THREE.MeshStandardMaterial({
+      color: plateColor,
+      emissive: plateColor,
+      emissiveIntensity: 0.70, // SOVEREIGN BOOST: BRACKETS LIGHT THEME DARKNESS
+      roughness: 0.4,
+      metalness: 0.0
+    }) : new THREE.MeshPhysicalMaterial({ 
+      color: plateColor, 
+      emissive: plateColor,
+      emissiveIntensity: 0.2,
       roughness: 0.2, 
       metalness: 0.0,
       clearcoat: 1.0,      // SOVEREIGN: CLEARCOAT FOR EDGE HIGHLIGHTS
@@ -241,13 +251,23 @@ export class CubeGrid {
 
     // 2. Translucent Label - PURE WHITE OUTLINES (Smaller for better margins)
     const labelGeo = new THREE.CircleGeometry(this.cellSize * 0.22, 32);
-    const labelMat = new THREE.MeshPhysicalMaterial({
+    const labelMat = this.isEco ? new THREE.MeshStandardMaterial({
+        color: 0xffffff,
+        emissive: 0xffffff,
+        emissiveIntensity: 1.0, // BRILLIANT WHITE FOR ECO
+        transparent: true,
+        opacity: 1.0,
+        depthWrite: false, 
+        side: THREE.DoubleSide
+    }) : new THREE.MeshPhysicalMaterial({
       color: 0xffffff,
+      emissive: 0xffffff,
+      emissiveIntensity: 0.8, // BRILLIANT WHITE
       transparent: true,
       opacity: 1.0,
       roughness: 1.0,
       metalness: 0.0,
-      depthWrite: false, // Prevent z-fighting
+      depthWrite: false, 
       side: THREE.DoubleSide
     });
     const labelMesh = new THREE.Mesh(labelGeo, labelMat);
@@ -336,20 +356,107 @@ export class CubeGrid {
     return neighbors.filter(n => n !== null);
   }
 
-  createPathMeshes(cells, color) {
+  createPathMeshes(cells, color, label) {
     const result = { meshes: [], meshesByCell: {} };
     if (cells.length < 2) return result;
 
     const points = this.getPathPoints(cells);
     const pipeR = 0.18;
+    const pipeColor = new THREE.Color(color); // FULL BRIGHTNESS 1.0
     const mat = new THREE.MeshPhysicalMaterial({
-        color: new THREE.Color(color),
+        color: pipeColor,
+        emissive: pipeColor,
+        emissiveIntensity: 0.2,
         roughness: 0.2, metalness: 0.1,
-        emissive: 0x000000, emissiveIntensity: 0.0, // ABSOLUTE GLOW PURGE
         clearcoat: 0.0
     });
 
-    const jointGeo = new THREE.SphereGeometry(pipeR, 12, 12);
+    if (this.isEco) {
+        // ECO MODE: 2D FLAT RIBBONS
+        const ribbonW = this.cellSize * 0.32; // MATCHING INTERACTION MANAGER
+        const surfaceNudge = 0.003; 
+        const ribbonMat = new THREE.MeshStandardMaterial({ 
+            color: pipeColor,
+            emissive: pipeColor,
+            emissiveIntensity: 0.70, // SOVEREIGN SYNC: MATCH PLATES
+            roughness: 0.3,
+            transparent: false, // OPAQUE FOR CORRECT CUBE OCCLUSION
+            opacity: 1.0, 
+            side: THREE.DoubleSide, 
+            depthWrite: true
+        });
+
+        // 3. Label Material (Restored for Parity)
+        const labelTexture = TextureHelper.createLabeledTexture(color, label);
+        const labelMat = new THREE.MeshStandardMaterial({
+            map: labelTexture, 
+            emissiveMap: labelTexture, // MASKED GLOW: KEEP OUTLINES DARK
+            transparent: true, 
+            opacity: 1.0, 
+            depthWrite: false, 
+            side: THREE.DoubleSide,
+            emissive: 0xffffff,
+            emissiveIntensity: 0.60 // SOVEREIGN BOOST: ENSURE WHITE NUMBERS ON RIBBONS
+        });
+
+        const jointGeo = new THREE.CircleGeometry(ribbonW / 2, 32); 
+        const labelGeo = new THREE.CircleGeometry(ribbonW * 0.45, 32);
+        const segGeo = new THREE.PlaneGeometry(ribbonW, 1); 
+
+        for (let i = 0; i < points.length; i++) {
+            const p = points[i].pos;
+            const cellIdx = points[i].cellIdx;
+            if (!result.meshesByCell[cellIdx]) result.meshesByCell[cellIdx] = [];
+
+            // 1. Joint Circle (ONLY AT CENTERS FOR PARITY)
+            if (points[i].isCenter) {
+                const normal = this.getFaceNormal(cells[cellIdx].f);
+                const joint = new THREE.Mesh(jointGeo, ribbonMat);
+                joint.position.copy(p).add(normal.clone().multiplyScalar(surfaceNudge));
+                joint.lookAt(joint.position.clone().add(normal));
+                joint.renderOrder = 50; // MATCH PLATES
+                this.group.add(joint);
+                result.meshes.push(joint);
+                result.meshesByCell[cellIdx].push(joint);
+
+                // SOVEREIGN REFINEMENT: Add Number Labels to Ribbons (Every Face Center)
+                const labelMesh = new THREE.Mesh(labelGeo, labelMat);
+                labelMesh.position.copy(joint.position).add(normal.clone().multiplyScalar(0.001));
+                labelMesh.lookAt(labelMesh.position.clone().add(normal));
+                labelMesh.renderOrder = 51; // ABOVE JOINT
+                this.group.add(labelMesh);
+                result.meshes.push(labelMesh);
+                result.meshesByCell[cellIdx].push(labelMesh);
+            }
+
+            // 2. Segment Plane to Previous
+            if (i > 0) {
+                const pPrev = points[i-1];
+                const pCurr = points[i];
+                const dist = pCurr.pos.distanceTo(pPrev.pos);
+                if (dist > 0.001) {
+                    const faceIdx = pPrev.isCenter ? cells[pPrev.cellIdx].f : cells[pCurr.cellIdx].f;
+                    const segNormal = this.getFaceNormal(faceIdx);
+                    
+                    const seg = new THREE.Mesh(segGeo, ribbonMat);
+                    seg.scale.y = dist;
+                    seg.position.copy(pCurr.pos.clone().add(pPrev.pos).multiplyScalar(0.5))
+                                .add(segNormal.clone().multiplyScalar(surfaceNudge));
+                    seg.quaternion.setFromRotationMatrix(new THREE.Matrix4().lookAt(pCurr.pos, pPrev.pos, segNormal));
+                    seg.rotateX(Math.PI/2);
+                    seg.renderOrder = 50; // MATCH JOINTS/PLATES
+                    this.group.add(seg);
+                    result.meshes.push(seg);
+                    result.meshesByCell[cellIdx].push(seg);
+                }
+            }
+        }
+        return result;
+    }
+
+    // 3D PIPE MODE (Standard)
+    const segments = 12;
+    const jointGeo = new THREE.SphereGeometry(pipeR, segments, segments);
 
     for (let i = 0; i < points.length; i++) {
         const p = points[i].pos;
@@ -370,7 +477,7 @@ export class CubeGrid {
             const dist = p.distanceTo(pPrev);
             if (dist < 0.001) continue;
 
-            const geo = new THREE.CylinderGeometry(pipeR, pipeR, dist, 12);
+            const geo = new THREE.CylinderGeometry(pipeR, pipeR, dist, segments);
             const mesh = new THREE.Mesh(geo, mat);
             mesh.position.copy(p).add(pPrev).multiplyScalar(0.5);
             mesh.lookAt(p);

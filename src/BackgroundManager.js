@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 export class BackgroundManager {
-    constructor(scene) {
+    constructor(scene, topColor, bottomColor) {
         this.scene = scene;
         this.intensity = 1.0;
         this.canvas = document.createElement('canvas');
@@ -14,12 +14,12 @@ export class BackgroundManager {
         this.texture = new THREE.CanvasTexture(this.canvas);
         
         // Grid properties (Restored for 3D)
-        this.gridColor = 'rgba(0,0,0,0.25)'; // Boosted for 3D visibility
-        this.topColor = '#d8d8d8';
-        this.bottomColor = '#b0b0b0';
+        this.gridColor = 'rgba(255,255,255,0.05)'; // Darker, more subtle grid
+        this.topColor = topColor || '#050505';
+        this.bottomColor = bottomColor || '#151515';
         
         this.init();
-        this.scene.background = this.texture;
+        if (this.scene) this.scene.background = this.texture;
         
         window.addEventListener('resize', () => {
             this.draw();

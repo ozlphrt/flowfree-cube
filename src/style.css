@@ -935,3 +935,41 @@ body.dark-theme .hud-icon-btn:hover {
 .hidden {
   display: none !important;
 }
+
+/* --- ECO MODE PERFORMANCE OVERRIDES --- */
+.eco-mode .glass {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    transition: none !important; /* Save on animation layout shifts */
+}
+
+body.eco-mode {
+    --glass-bg: rgba(30, 30, 30, 0.95) !important;
+}
+
+body.eco-mode:not(.dark-theme) {
+    --glass-bg: rgba(230, 230, 230, 0.95) !important;
+}
+
+body.eco-mode .hud-pill,
+body.eco-mode .hud-icon-btn,
+body.eco-mode #settings-panel {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+}
+
+
+.eco-icon {
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.settings-icon.active.eco-icon {
+    color: #34c759;
+    text-shadow: 0 0 8px rgba(52, 199, 89, 0.5);
+}

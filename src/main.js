@@ -101,7 +101,8 @@ scene.environmentIntensity = 0.60; // SOVEREIGN SIGNATURE ENV INTENSITY
 // 2. Environment (RoomEnvironment for Sovereign Reflections)
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 const pmremGenerator = new THREE.PMREMGenerator(renderer);
-scene.environment = pmremGenerator.fromScene(new RoomEnvironment(renderer), 0.04).texture;
+const fullEnvironment = pmremGenerator.fromScene(new RoomEnvironment(renderer), 0.04).texture;
+scene.environment = fullEnvironment;
 
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 camera.position.set(7, 6, 7);
@@ -168,7 +169,7 @@ const gameController = new GameController(grid);
 window.gameController = gameController;
 const interactionManager = new InteractionManager(camera, grid, renderer, gameController, scene);
 window.interactionManager = interactionManager;
-const backgroundManager = new BackgroundManager(scene);
+const backgroundManager = new BackgroundManager(scene, '#020202', '#0a0a0a'); 
 
 // 5. Sovereign Debug Panel (CTRL+Shift+Alt+D)
 const debugManager = new DebugManager(gameController, scene, renderer, grid, interactionManager, backgroundManager);
@@ -182,44 +183,81 @@ function applySettings(settings) {
         localStorage.setItem('sovereign_cube_level', settings.levelJump);
     }
     
-    // 2. Audio
-    soundManager.setMuted(!settings.audioEnabled);
-    
+    // 4. Eco Mode (Extreme Performance)
+    const isEco = !!settings.ecoMode;
+    document.body.classList.toggle('eco-mode', isEco);
+    window.currentRenderTimeout = isEco ? 500 : 2000;
+
+    // A. RESOLUTION SCALING (Extreme Eco)
+    const targetDPR = isEco ? 1.0 : Math.min(window.devicePixelRatio, 1.5);
+    if (renderer.getPixelRatio() !== targetDPR) {
+        renderer.setPixelRatio(targetDPR);
+        // Resize to apply new DPR
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    // B. ENVIRONMENT PURGE (Extreme Eco)
+    scene.environment = isEco ? null : fullEnvironment;
+
+    if (isEco) {
+        // FLAT PERFORMANCE SETTINGS
+        if (grid.coreMat) {
+            grid.coreMat.roughness = 1.0;
+            grid.coreMat.metalness = 0.0;
+            grid.coreMat.clearcoat = 0.0;
+            grid.coreMat.transmission = 0.0; // BATTERY WIN: DISABLE REFRACTION
+            grid.coreMat.opacity = settings.darkMode ? 0.80 : 0.60; // SOVEREIGN BOOST: MORE OPAQUE
+            grid.coreMat.color.set(0xffffff); // PURE WHITE IN BOTH THEMES
+            grid.coreMat.emissive.set(0xffffff); // SOVEREIGN GLOW: PREVENT DARKNESS
+            grid.coreMat.emissiveIntensity = settings.darkMode ? 0.05 : 0.25; // BRIGHTER IN LIGHT THEME
+            grid.isEco = true; 
+        }
+    } else {
+        // HIGH FIDELITY SOVEREIGN SETTINGS
+        if (grid.coreMat) {
+            grid.coreMat.roughness = settings.darkMode ? 0.40 : 0.30;
+            grid.coreMat.metalness = 0.05;
+            grid.coreMat.clearcoat = 1.0;
+            grid.coreMat.transmission = 0.95; // RESTORE SOVEREIGN GLASS
+            grid.coreMat.opacity = 1.0;
+            grid.coreMat.ior = settings.darkMode ? 1.71 : 1.62;
+            grid.isEco = false;
+        }
+    }
+
     // 3. Theme
     if (settings.darkMode) {
         backgroundManager.setTheme('dark');
-        renderer.toneMappingExposure = 0.7; // NEW DARK DEFAULT
-        scene.environmentIntensity = 0.6;   // NEW DARK DEFAULT
-        ambientLight.intensity = 0.8;       // NEW DARK DEFAULT
+        renderer.toneMappingExposure = 0.7;
+        scene.environmentIntensity = 0.6;
+        ambientLight.intensity = 0.8;
         
-        // Material Physics (Sovereign Quality)
-        grid.coreMat.roughness = 0.40;
-        grid.coreMat.ior = 1.71;
+        if (!isEco) {
+            grid.coreMat.roughness = 0.40;
+            grid.coreMat.ior = 1.71;
+        }
         
-        // Lights & Effects
         pointLight1.intensity = 1.0;
         pointLight2.intensity = 0.5;
         
-        // Grid visibility
         if (grid.barMat) {
             grid.barMat.color.set(0xffffff);
             grid.barMat.opacity = 0.1; 
         }
     } else {
         backgroundManager.setTheme('light');
-        renderer.toneMappingExposure = 0.9; // LIGHT DEFAULT
-        scene.environmentIntensity = 0.6;   // LIGHT DEFAULT
-        ambientLight.intensity = 0.0;       // LIGHT DEFAULT
+        renderer.toneMappingExposure = 0.9;
+        scene.environmentIntensity = 0.6;
+        ambientLight.intensity = 0.0;
         
-        // Material Physics (Sovereign Quality)
-        grid.coreMat.roughness = 0.30;
-        grid.coreMat.ior = 1.62;
+        if (!isEco) {
+            grid.coreMat.roughness = 0.30;
+            grid.coreMat.ior = 1.62;
+        }
         
-        // Lights & Effects
         pointLight1.intensity = 4.5;
         pointLight2.intensity = 1.0;
 
-        // Grid visibility
         if (grid.barMat) {
             grid.barMat.color.set(0x000000);
             grid.barMat.opacity = 0.07;
@@ -335,7 +373,10 @@ initModals(); // SOVEREIGN UI INIT
 // 5. Battery Optimization Engine
 let renderRequested = true;
 let lastRequestTime = Date.now();
-const RENDER_TIMEOUT = 2000; // Keep rendering 2s after any activity for lerps and animations
+window.currentRenderTimeout = 2000; 
+let lastFrameTime = 0;
+const ECO_FPS = 30;
+const MIN_FRAME_MS = 1000 / ECO_FPS;
 
 function requestRender() {
     renderRequested = true;
@@ -357,14 +398,23 @@ function loop() {
     requestAnimationFrame(loop);
     if (!isVisible) return;
 
-    // Check if we need to render
     const now = Date.now();
+    const isEco = document.body.classList.contains('eco-mode');
+
+    // ECO CAP: 30 FPS LIMIT
+    if (isEco) {
+        const delta = now - lastFrameTime;
+        if (delta < MIN_FRAME_MS) return;
+    }
+
+    // Check if we need to render
     const interactionActive = interactionManager.isDragging || 
                               interactionManager.isResetting || 
                               interactionManager.isVictorious || 
-                              (now - lastRequestTime < RENDER_TIMEOUT);
+                              (now - lastRequestTime < window.currentRenderTimeout);
 
     if (renderRequested || interactionActive) {
+        lastFrameTime = now;
         interactionManager.update();
         grid.update(camera);
         renderer.render(scene, camera);

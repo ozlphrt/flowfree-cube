@@ -123,6 +123,7 @@ export class GameController {
     // Apply texture to the TOP TRANSPARENT LABEL MESH
     const texture = TextureHelper.createLabeledTexture(color, label);
     labelMesh.material.map = texture;
+    labelMesh.material.emissiveMap = texture; // OUTLINE PROTECTION
     labelMesh.material.needsUpdate = true;
 
     this.plates.push({ f, u, v, color, label, mesh: plate, labelMesh });
@@ -372,16 +373,13 @@ export class GameController {
             soundManager.playVent(); // Strategic click for new path start
 
             const pathObj = {
+                cells: item.path,
                 color: item.color,
-                label: item.label,
-                startPlate: this.getPlateAt(item.path[0].f, item.path[0].u, item.path[0].v),
-                cells: [...item.path],
-                meshes: [],
-                meshesByCell: {}, // TRACKING: Essential for stable v1.185.3
+                label: item.label, // SOVEREIGN FIX: PASSING THE ACTUAL LABEL
                 isCompleted: true
             };
 
-            const points = this.grid.getPathPoints(pathObj.cells);
+            const { meshes, meshesByCell } = this.grid.createPathMeshes(pathObj.cells, pathObj.color, pathObj.label);
             const pipeR = 0.18;
             const mat = new THREE.MeshPhysicalMaterial({
                 color: new THREE.Color(item.color),

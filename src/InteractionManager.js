@@ -9,6 +9,7 @@ export class InteractionManager {
     this.renderer = renderer;
     this.gameController = gameController;
     this.scene = scene;
+    this.clock = new THREE.Clock();
 
     this.raycaster = new THREE.Raycaster();
     this.pointer = new THREE.Vector2();
@@ -46,6 +47,9 @@ export class InteractionManager {
     // Compass Animation
     this.isResetting = false;
     this.identityQuaternion = new THREE.Quaternion();
+
+    // Connection Flash State
+    this.flashingPaths = new Map(); // path -> { startTime, duration }
     
     // Victory State
     this.isVictorious = false;
@@ -333,6 +337,17 @@ export class InteractionManager {
                   this.activePath.isCompleted = true;
                   this.gameController.addCompletedPath(this.activePath);
                   this.redrawEntirePath(this.activePath, true); // FORCE ON COMPLETION
+                  
+                  // SOVEREIGN FLASH: Find terminal plates and trigger strobe
+                  const startPlate = this.gameController.getPlateAt(this.activePath.cells[0].f, this.activePath.cells[0].u, this.activePath.cells[0].v);
+                  const endPlate = plateHit;
+                  
+                  this.flashingPaths.set(this.activePath, { 
+                      startTime: Date.now(), 
+                      duration: 333, // 3X FASTER
+                      plates: [startPlate, endPlate]
+                  });
+
                   soundManager.playLock();
                   this.onPointerUp();
                   return;
@@ -395,44 +410,23 @@ export class InteractionManager {
   }
 
   update() {
-    // Zoom smoothing
-    this.currentCameraDistance = THREE.MathUtils.lerp(this.currentCameraDistance, this.targetCameraDistance, 0.1);
+    const delta = this.clock.getDelta();
+    const frameRatio = delta * 60; 
+
+    // 1. Zoom smoothing
+    const zoomLerp = 1 - Math.pow(1 - 0.1, frameRatio);
+    this.currentCameraDistance = THREE.MathUtils.lerp(this.currentCameraDistance, this.targetCameraDistance, zoomLerp);
     const camDir = this.camera.position.clone().normalize();
     this.camera.position.copy(camDir.multiplyScalar(this.currentCameraDistance));
 
-    // SOVEREIGN COMPASS: Sync rotation with cube Y-axis
+    // 2. Compass Sync
     if (this.compassIcon) {
         const euler = new THREE.Euler().setFromQuaternion(this.grid.group.quaternion, 'YXZ');
         const rotationDegrees = -THREE.MathUtils.radToDeg(euler.y);
         this.compassIcon.style.transform = `rotate(${rotationDegrees}deg)`;
     }
 
-    if (this.isVictorious) {
-        if (!this.isDragging) {
-            // Continuous, gradually shifting rotation
-            this.victoryTime += 0.016; 
-            const speed = 0.004;
-            const rx = Math.sin(this.victoryTime * 0.3) * speed;
-            const ry = Math.cos(this.victoryTime * 0.4) * speed;
-            const rz = Math.sin(this.victoryTime * 0.5) * speed;
-            
-            this.grid.group.rotateX(rx);
-            this.grid.group.rotateY(ry);
-            this.grid.group.rotateZ(rz);
-        } else {
-            this.victoryTime += 0.016; // Keep time moving for pulse
-        }
-
-        // Sovereign Pulse: Breathe the completed pipes
-        const pulse = (Math.sin(this.victoryTime * 3.0) * 0.5 + 0.5) * 0.4;
-        this.gameController.completedPaths.forEach(path => {
-            path.meshes.forEach(m => {
-                if (m.material) m.material.emissiveIntensity = pulse * 0.25; // Subtler victory glow
-            });
-        });
-    }
-
-    // Animate Long-Press Dial
+    // 3. Dial Animation (Long Press)
     if (this.isDragging && !this.isLongPress && this.longPressStartTime > 0) {
       const elapsed = Date.now() - this.longPressStartTime;
       const t = Math.min(1, elapsed / this.LONG_PRESS_DURATION);
@@ -442,41 +436,93 @@ export class InteractionManager {
       }
     }
 
+    // 4. Connection Flash Animation
+    if (this.flashingPaths.size > 0) {
+        const now = Date.now();
+        for (const [path, data] of this.flashingPaths.entries()) {
+            const elapsed = now - data.startTime;
+            const t = Math.min(elapsed / data.duration, 1.0);
+            
+            // SOVEREIGN STROBE: Triple-pulse high-intensity curve
+            const pulses = 3;
+            const wave = Math.pow(Math.sin(t * Math.PI * pulses), 4);
+            const intensity = wave * 8.0 * (1 - t); // MIGHTY FLASH (peaks at 8x)
+            const emissiveMult = 1.0 + intensity; 
+
+            // Collect all meshes to flash
+            const targetObjects = [...path.meshes];
+            if (data.plates) {
+                data.plates.forEach(p => {
+                    if (p.mesh) targetObjects.push(p.mesh);
+                    if (p.labelMesh) targetObjects.push(p.labelMesh);
+                });
+            }
+
+            targetObjects.forEach(m => {
+                if (m.material) {
+                    const mats = Array.isArray(m.material) ? m.material : [m.material];
+                    mats.forEach(mat => {
+                        if (mat.emissiveIntensity !== undefined) {
+                            mat.emissiveIntensity = 0.2 * emissiveMult;
+                        }
+                    });
+                }
+            });
+
+            if (t >= 1.0) {
+                targetObjects.forEach(m => {
+                    if (m.material) {
+                        const mats = Array.isArray(m.material) ? m.material : [m.material];
+                        mats.forEach(mat => {
+                            if (mat.emissiveIntensity !== undefined) {
+                                mat.emissiveIntensity = 0.2; 
+                            }
+                        });
+                    }
+                });
+                this.flashingPaths.delete(path);
+            }
+        }
+    }
+
+    // 5. Rotation, Resetting, & Victory
     if (this.isResetting) {
-        this.grid.group.quaternion.slerp(this.identityQuaternion, 0.1);
-        if (this.grid.group.quaternion.angleTo(this.identityQuaternion) < 0.001) {
+        this.grid.group.quaternion.slerp(this.identityQuaternion, 0.15 * frameRatio);
+        if (this.grid.group.quaternion.angleTo(this.identityQuaternion) < 0.01) {
             this.grid.group.quaternion.copy(this.identityQuaternion);
             this.isResetting = false;
         }
     } else if (this.isVictorious) {
-        // VICTORY CELEBRATION: Stochastic Pulse & Tumble
-        const now = Date.now();
-        if (now - this.lastNudgeTime > this.nudgeInterval) {
-            this.lastNudgeTime = now;
-            // Select random axis
-            const axes = [new THREE.Vector3(1,0,0), new THREE.Vector3(0,1,0), new THREE.Vector3(0,0,1)];
-            this.victoryAxis = axes[Math.floor(Math.random() * axes.length)];
-            // Apply speed nudge (Whisper light pulses)
-            this.targetRotationVelocity += (0.005 + Math.random() * 0.01); 
-            // Randomly vary the interval for a more "organic" feel
-            this.nudgeInterval = 1000 + Math.random() * 2000;
+        if (!this.isDragging) {
+            this.victoryTime += delta; 
+            const speed = 0.25; 
+            const rx = Math.sin(this.victoryTime * 0.3) * speed * delta;
+            const ry = Math.cos(this.victoryTime * 0.4) * speed * delta;
+            const rz = Math.sin(this.victoryTime * 0.5) * speed * delta;
+            
+            this.grid.group.rotateX(rx);
+            this.grid.group.rotateY(ry);
+            this.grid.group.rotateZ(rz);
+        } else {
+            this.victoryTime += delta; 
         }
 
-        // Apply rotation and physical deceleration (damping)
-        this.currentRotationVelocity = THREE.MathUtils.lerp(this.currentRotationVelocity, this.targetRotationVelocity, 0.05);
-        this.grid.group.rotateOnAxis(this.victoryAxis, this.currentRotationVelocity);
-        
-        // Constant natural drag (slow down)
-        this.targetRotationVelocity *= 0.98;
-
+        // Sovereign Pulse: Breathe the completed pipes
+        const pulse = (Math.sin(this.victoryTime * 3.0) * 0.5 + 0.5) * 0.4;
+        this.gameController.completedPaths.forEach(path => {
+            path.meshes.forEach(m => {
+                if (m.material) m.material.emissiveIntensity = pulse * 0.25; 
+            });
+        });
     } else {
-        this.currentRotationVelocity = THREE.MathUtils.lerp(this.currentRotationVelocity, this.targetRotationVelocity, this.lerpFactor);
+        const rotLerp = 1 - Math.pow(1 - this.lerpFactor, frameRatio);
+        this.currentRotationVelocity = THREE.MathUtils.lerp(this.currentRotationVelocity, this.targetRotationVelocity, rotLerp);
         if (this.lockedLocalAxis !== null && Math.abs(this.currentRotationVelocity) > 0.0001) {
-            this.grid.group.rotateOnAxis(this.lockedLocalAxis, this.currentRotationVelocity * this.axisSign);
+            this.grid.group.rotateOnAxis(this.lockedLocalAxis, this.currentRotationVelocity * this.axisSign * frameRatio);
         }
     }
 
-    // Dynamic Visibility: Hide grid lines inside/behind
+    // 6. Dynamic Visibility Update
     this.grid.update(this.camera);
   }
 
@@ -495,14 +541,28 @@ export class InteractionManager {
 
     // 1. RIBBON MODE (Tactical Active Draw)
     if (isActive) {
-      const ribbonMat = new THREE.MeshBasicMaterial({ 
-        color: new THREE.Color(path.color),
-        transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false
+      const litColor = new THREE.Color(path.color); // FULL BRIGHTNESS 1.0
+      const ribbonMat = new THREE.MeshStandardMaterial({ 
+        color: litColor,
+        emissive: litColor,
+        emissiveIntensity: 0.70, // SOVEREIGN SYNC: MATCH PLATES
+        roughness: 0.3,
+        transparent: false, // OPAQUE FOR CORRECT CUBE OCCLUSION
+        opacity: 1.0, 
+        side: THREE.DoubleSide, 
+        depthWrite: true
       });
 
       const labelTexture = TextureHelper.createLabeledTexture(path.color, path.label);
-      const labelMat = new THREE.MeshBasicMaterial({
-          map: labelTexture, transparent: true, opacity: 1.0, depthWrite: false, side: THREE.DoubleSide
+      const labelMat = new THREE.MeshStandardMaterial({
+          map: labelTexture, 
+          emissiveMap: labelTexture, // MASKED GLOW: KEEP OUTLINES DARK
+          transparent: true, 
+          opacity: 1.0, 
+          depthWrite: false, 
+          side: THREE.DoubleSide,
+          emissive: 0xffffff,
+          emissiveIntensity: 0.8 // BRILLIANT WHITE
       });
 
       // Draw Joint Circles and Segment Planes
@@ -514,22 +574,25 @@ export class InteractionManager {
         // Joint at every cell center
         if (points[i].isCenter || i === 0 || i === points.length - 1) {
             const normal = this.grid.getFaceNormal(path.cells[cellIdx].f);
+            const surfaceNudge = 0.003; // SLIGHTLY HIGHER THAN COMPLETED FOR VISIBILITY
             const jointGeo = new THREE.CircleGeometry(ribbonW / 2, 32);
             const joint = new THREE.Mesh(jointGeo, ribbonMat);
-            joint.position.copy(p);
-            joint.lookAt(p.clone().add(normal));
-            joint.renderOrder = 60;
+            joint.position.copy(p).add(normal.clone().multiplyScalar(surfaceNudge));
+            joint.lookAt(joint.position.clone().add(normal));
+            joint.renderOrder = 60; // ABOVE CUBE
             this.grid.group.add(joint);
             path.meshes.push(joint);
             path.meshesByCell[cellIdx].push(joint);
 
-            // Ribbon Label
+            // SOVEREIGN REAL-TIME LABELS: Add number while drawing
             const labelGeo = new THREE.CircleGeometry(ribbonW * 0.45, 32);
-            const label = new THREE.Mesh(labelGeo, labelMat);
-            label.position.set(0, 0, 0.002);
-            label.renderOrder = 75;
-            joint.add(label);
-            path.ribbonLabels.push(label);
+            const labelMesh = new THREE.Mesh(labelGeo, labelMat);
+            labelMesh.position.copy(joint.position).add(normal.clone().multiplyScalar(0.001));
+            labelMesh.lookAt(labelMesh.position.clone().add(normal));
+            labelMesh.renderOrder = 61; // ABOVE JOINT
+            this.grid.group.add(labelMesh);
+            path.meshes.push(labelMesh);
+            path.meshesByCell[cellIdx].push(labelMesh);
         }
 
         // Segment to PREVIOUS point
@@ -542,40 +605,44 @@ export class InteractionManager {
                 // 1. If we are moving from Center to Edge, use the Start Face Normal.
                 // 2. If we are moving from Edge to Center, use the End Face Normal.
                 const faceIdx = pPrev.isCenter ? path.cells[pPrev.cellIdx].f : path.cells[pCurr.cellIdx].f;
-                const normal = this.grid.getFaceNormal(faceIdx);
+                const segNormal = this.grid.getFaceNormal(faceIdx);
 
-                const segGeo = new THREE.PlaneGeometry(ribbonW, dist);
+                const segGeo = new THREE.PlaneGeometry(ribbonW, 1);
+                const surfaceNudge = 0.003;
                 const seg = new THREE.Mesh(segGeo, ribbonMat);
-                seg.position.copy(pCurr.pos.clone().add(pPrev.pos).multiplyScalar(0.5));
-                
-                // FORCE PARALLELISM: Use the specific face normal for orientation
-                seg.quaternion.setFromRotationMatrix(new THREE.Matrix4().lookAt(pCurr.pos, pPrev.pos, normal));
+                seg.scale.y = dist;
+                seg.position.copy(pCurr.pos.clone().add(pPrev.pos).multiplyScalar(0.5))
+                            .add(segNormal.clone().multiplyScalar(surfaceNudge));
+                seg.quaternion.setFromRotationMatrix(new THREE.Matrix4().lookAt(pCurr.pos, pPrev.pos, segNormal));
                 seg.rotateX(Math.PI/2);
                 seg.renderOrder = 60;
                 this.grid.group.add(seg);
                 path.meshes.push(seg);
+                if (!path.meshesByCell[cellIdx]) path.meshesByCell[cellIdx] = [];
                 path.meshesByCell[cellIdx].push(seg);
             }
         }
       }
-      return; 
+    } else {
+        // 2. PIPE MODE (Completed Paths) - SOVEREIGN FIX: CORRECT LABEL PASSING
+        const result = this.grid.createPathMeshes(path.cells, path.color, path.label);
+        path.meshes = result.meshes;
+        path.meshesByCell = result.meshesByCell;
     }
-
-    // 2. PIPE MODE (Completed Paths)
-    const result = this.grid.createPathMeshes(path.cells, path.color);
-    path.meshes = result.meshes;
-    path.meshesByCell = result.meshesByCell;
   }
 
-  setVictory(bool) {
-    this.isVictorious = bool;
-    if (bool) {
+  setVictory(isWon) {
+    this.isVictorious = isWon;
+    this.victoryTime = 0;
+    if (isWon) {
         this.targetRotationVelocity = 0.02; // Whisper initial kick
         this.lastNudgeTime = Date.now();
         this.victoryAxis = new THREE.Vector3(Math.random(), Math.random(), Math.random()).normalize();
     } else {
-        this.targetRotationVelocity = 0;
+        // Snap back to starting alignment
+        this.grid.group.quaternion.identity();
         this.currentRotationVelocity = 0;
+        this.targetRotationVelocity = 0;
         this.resetOrientation();
     }
   }
@@ -607,17 +674,6 @@ export class InteractionManager {
       this.lockedDragDir = null;
       this.isResetting = true;
       if (window.requestSovereignFrame) window.requestSovereignFrame();
-  }
-
-  setVictory(isWon) {
-      this.isVictorious = isWon;
-      this.victoryTime = 0;
-      if (!isWon) {
-          // Snap back to starting alignment
-          this.grid.group.quaternion.identity();
-          this.currentRotationVelocity = 0;
-          this.targetRotationVelocity = 0;
-      }
   }
 }
 

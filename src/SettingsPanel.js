@@ -6,6 +6,7 @@ export class SettingsPanel {
     this.sensitivity = parseFloat(localStorage.getItem('flowfree_sensitivity')) || 1.0;
     this.audioEnabled = localStorage.getItem('flowfree_audio') !== 'false';
     this.darkMode = localStorage.getItem('flowfree_dark_mode') === 'true';
+    this.ecoMode = localStorage.getItem('flowfree_eco_mode') === 'true';
     
     this.initUI();
     
@@ -19,6 +20,7 @@ export class SettingsPanel {
     
     this.audioBtn = document.getElementById('audio-icon-btn');
     this.themeBtn = document.getElementById('theme-icon-btn');
+    this.ecoBtn = document.getElementById('eco-btn');
     this.lvlBtn = document.getElementById('lvl-btn');
     this.versionBtn = document.getElementById('version-btn');
 
@@ -52,22 +54,29 @@ export class SettingsPanel {
       };
     }
 
+    if (this.ecoBtn) {
+      this.ecoBtn.onclick = (e) => {
+        e.stopPropagation();
+        this.ecoMode = !this.ecoMode;
+        localStorage.setItem('flowfree_eco_mode', this.ecoMode);
+        this.updateIconState();
+        this.triggerChange();
+      };
+    }
+
     if (this.lvlBtn) {
       this.lvlBtn.onclick = (e) => {
         e.stopPropagation();
         if (window.showLevelModal) window.showLevelModal();
-        this.panel.classList.add('hidden'); // Close settings
+        this.panel.classList.add('hidden');
       };
     }
 
     if (this.versionBtn) {
-      const vIcon = this.versionBtn.querySelector('.version-icon');
-      if (vIcon) vIcon.innerText = "VER";
-
       this.versionBtn.onclick = (e) => {
           e.stopPropagation();
           if (window.showVersionModal) window.showVersionModal();
-          this.panel.classList.add('hidden'); // Close settings
+          this.panel.classList.add('hidden');
       };
     }
 
@@ -76,7 +85,7 @@ export class SettingsPanel {
         this.refillBtn.onclick = (e) => {
             e.stopPropagation();
             if (this.onRefill) this.onRefill();
-            this.panel.classList.add('hidden'); // Close settings
+            this.panel.classList.add('hidden');
         };
     }
 
@@ -104,6 +113,10 @@ export class SettingsPanel {
       moonItems.forEach(el => el.classList.toggle('hidden', this.darkMode));
       this.themeBtn.querySelector('.settings-icon').classList.toggle('active', this.darkMode);
     }
+
+    if (this.ecoBtn) {
+        this.ecoBtn.querySelector('.settings-icon').classList.toggle('active', this.ecoMode);
+    }
   }
 
   triggerChange(extra = {}) {
@@ -111,6 +124,7 @@ export class SettingsPanel {
       this.onChange({
         audioEnabled: this.audioEnabled,
         darkMode: this.darkMode,
+        ecoMode: this.ecoMode,
         ...extra
       });
     }
