@@ -91,7 +91,7 @@ export class SettingsPanel {
 
     // Close on click outside
     window.addEventListener('pointerdown', (e) => {
-      if (!this.panel.contains(e.target) && e.target !== this.btn) {
+      if (!this.panel.contains(e.target) && !this.btn.contains(e.target)) {
         this.panel.classList.add('hidden');
       }
     });
